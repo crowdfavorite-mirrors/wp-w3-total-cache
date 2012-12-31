@@ -2,8 +2,8 @@
 Contributors: fredericktownes
 Tags: user experience, cache, caching, page cache, css cache, js cache, db cache, disk cache, disk caching, database cache, http compression, gzip, deflate, minify, cdn, content delivery network, media library, performance, speed, multiple hosts, css, merge, combine, unobtrusive javascript, compress, optimize, optimizer, javascript, js, cascading style sheet, plugin, yslow, yui, google, google rank, google page speed, mod_pagespeed, s3, cloudfront, aws, amazon web services, cloud files, rackspace, cotendo, max cdn, limelight, cloudflare, microsoft, microsoft azure, iis, nginx, litespeed, apache, varnish, xcache, apc, eacclerator, wincache, mysql, w3 total cache, batcache, wp cache, wp super cache, buddypress
 Requires at least: 2.8
-Tested up to: 3.2.1
-Stable tag: 0.9.2.4
+Tested up to: 3.5
+Stable tag: 0.9.2.5
 
 Improve site performance and user experience via caching: browser, page, object, database, minify and content delivery network support.
 
@@ -462,6 +462,9 @@ Please reach out to all of these people and support their projects if you're so 
 
 == Changelog ==
 
+= 0.9.2.5 =
+* Fixed security issue that can occur if using database caching to disk. If using database caching to disk with a web server with directory listing or web accessible wp-content/w3tc/dbcache/* directories. This patch works for all hosting environments / types where PHP is properly configured, i.e. .htaccess modifications (or other web server configuration changes) are *not* necessary to ensure proper security. Empty the database cache after performing the update if you use database caching to disk.
+
 = 0.9.2.4 =
 * Added support for Microsoft SQL Server
 * Added API support for MediaTemple ProCDN (EdgeCast)
@@ -791,3 +794,8 @@ Please reach out to all of these people and support their projects if you're so 
 
 = 0.5 =
 * Initial release
+
+== Upgrade Notice ==
+
+= 0.9.2.5 =
+* Fixed security issue that can occur if using database caching to disk. If using database caching to disk with a web server with directory listing or web accessible wp-content/w3tc/dbcache/* directories. This patch works for all hosting environments / types where PHP is properly configured, i.e. .htaccess modifications (or other web server configuration changes) are *not* necessary to ensure proper security. Empty the database cache after performing the update if you use database caching to disk.
