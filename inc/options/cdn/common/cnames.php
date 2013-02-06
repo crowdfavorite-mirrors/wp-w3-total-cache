@@ -13,19 +13,19 @@ foreach ($cnames as $index => $cname):
     if ($count > 1):
     	switch ($index):
             case 0:
-                $label = '(reserved for <acronym title="Cascading Style Sheet">CSS</acronym>)';
+                $label = '(reserved for CSS)';
                 break;
 
             case 1:
-                $label = '(reserved for <acronym title="JavaScript">JS</acronym> in <head>)';
+                $label = '(reserved for JS in <head>)';
                 break;
 
             case 2:
-                $label = '(reserved for <acronym title="JavaScript">JS</acronym> after <body>)';
+                $label = '(reserved for JS after <body>)';
                 break;
 
             case 3:
-                $label = '(reserved for <acronym title="JavaScript">JS</acronym> before </body>)';
+                $label = '(reserved for JS before </body>)';
                 break;
 
             default:
@@ -35,10 +35,13 @@ foreach ($cnames as $index => $cname):
     endif;
 ?>
 	<li>
-		<input type="text" name="cdn_cnames[]" value="<?php echo htmlspecialchars($cname); ?>" size="60" />
-		<input class="button cdn_cname_delete" type="button" value="Delete"<?php if (!$index): ?> style="display: none;"<?php endif; ?> />
+		<input type="text" name="cdn_cnames[]"
+                       <?php $this->sealing_disabled('cdn') ?> value="<?php echo htmlspecialchars($cname); ?>" size="60" />
+		<input class="button cdn_cname_delete" type="button"
+                       <?php $this->sealing_disabled('cdn') ?> value="Delete"<?php if (!$index): ?> style="display: none;"<?php endif; ?> />
 		<span><?php echo htmlspecialchars($label); ?></span>
 	</li>
 <?php endforeach; ?>
 </ol>
-<input id="cdn_cname_add" class="button" type="button" value="Add CNAME" />
+<input id="cdn_cname_add" class="button" type="button" value="Add CNAME" 
+    <?php $this->sealing_disabled('cdn') ?> />

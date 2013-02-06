@@ -2,25 +2,28 @@
 <tr>
     <th style="width: 300px;"><label for="cdn_cotendo_username">Username:</label></th>
     <td>
-        <input id="cdn_cotendo_username" class="w3tc-ignore-change" type="text" name="cdn.cotendo.username" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.cotendo.username')); ?>" size="60" />
+        <input id="cdn_cotendo_username" class="w3tc-ignore-change" type="text"
+           <?php $this->sealing_disabled('cdn') ?> name="cdn.cotendo.username" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.cotendo.username')); ?>" size="60" />
     </td>
 </tr>
 <tr>
     <th><label for="cdn_cotendo_password">Password:</label></th>
     <td>
-        <input id="cdn_cotendo_password" class="w3tc-ignore-change" type="password" name="cdn.cotendo.password" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.cotendo.password')); ?>" size="60" />
+        <input id="cdn_cotendo_password" class="w3tc-ignore-change"
+           <?php $this->sealing_disabled('cdn') ?> type="password" name="cdn.cotendo.password" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.cotendo.password')); ?>" size="60" />
     </td>
 </tr>
 <tr>
     <th><label for="cdn_cotendo_zones">Zones to purge:</label></th>
     <td>
-        <textarea id="cdn_cotendo_zones" name="cdn.cotendo.zones" cols="40" rows="5"><?php echo htmlspecialchars(implode("\r\n", $this->_config->get_array('cdn.cotendo.zones'))); ?></textarea>
+        <textarea id="cdn_cotendo_zones" name="cdn.cotendo.zones"
+            <?php $this->sealing_disabled('cdn') ?> cols="40" rows="5"><?php echo htmlspecialchars(implode("\r\n", $this->_config->get_array('cdn.cotendo.zones'))); ?></textarea>
     </td>
 </tr>
 <tr>
 	<th><label for="cdn_cotendo_ssl"><acronym title="Secure Sockets Layer">SSL</acronym> support:</label></th>
 	<td>
-		<select id="cdn_cotendo_ssl" name="cdn.cotendo.ssl">
+		<select id="cdn_cotendo_ssl" name="cdn.cotendo.ssl" <?php $this->sealing_disabled('cdn') ?>>
 			<option value="auto"<?php selected($this->_config->get_string('cdn.cotendo.ssl'), 'auto'); ?>>Auto (determine connection type automatically)</option>
 			<option value="enabled"<?php selected($this->_config->get_string('cdn.cotendo.ssl'), 'enabled'); ?>>Enabled (always use SSL)</option>
 			<option value="disabled"<?php selected($this->_config->get_string('cdn.cotendo.ssl'), 'disabled'); ?>>Disabled (always use HTTP)</option>

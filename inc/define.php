@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 define('W3TC', true);
-define('W3TC_VERSION', '0.9.2.5');
+define('W3TC_VERSION', '0.9.2.7');
 define('W3TC_POWERED_BY', 'W3 Total Cache/' . W3TC_VERSION);
 define('W3TC_EMAIL', 'w3tc@w3-edge.com');
 define('W3TC_PAYPAL_URL', 'https://www.paypal.com/cgi-bin/webscr');
@@ -13,8 +13,11 @@ define('W3TC_PAYPAL_BUSINESS', 'w3tc-team@w3-edge.com');
 define('W3TC_LINK_URL', 'http://www.w3-edge.com/wordpress-plugins/');
 define('W3TC_LINK_NAME', 'WordPress Plugins');
 define('W3TC_FEED_URL', 'http://feeds.feedburner.com/W3TOTALCACHE');
-define('W3TC_README_URL', 'http://plugins.trac.wordpress.org/browser/w3-total-cache/trunk/readme.txt?format=txt');
+define('W3TC_NEWS_FEED_URL', 'http://feeds.w3-edge.com/W3EDGE');
+define('W3TC_README_URL', 'http://plugins.svn.wordpress.org/w3-total-cache/trunk/readme.txt');
 define('W3TC_SUPPORT_US_TIMEOUT', 2592000);
+define('W3TC_SUPPORT_REQUEST_URL', 'http://www.w3-edge.com/?w3tc_support_request=1');
+define('NEWRELIC_SIGNUP_URL', 'https://rpm.newrelic.com/signup?product[level]=Standard&product[commitment]=Monthly&subscription[number_of_hosts]=1&partnership_id=295');
 
 define('W3TC_PHP5', PHP_VERSION >= 5);
 define('W3TC_WIN', (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'));
@@ -22,6 +25,9 @@ define('W3TC_WIN', (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'));
 defined('W3TC_DIR') || define('W3TC_DIR', realpath(dirname(__FILE__) . '/..'));
 define('W3TC_FILE', 'w3-total-cache/w3-total-cache.php');
 define('W3TC_INC_DIR', W3TC_DIR . '/inc');
+define('W3TC_INC_WIDGET_DIR', W3TC_INC_DIR. '/widget');
+define('W3TC_INC_FUNCTIONS_DIR', W3TC_INC_DIR . '/functions');
+define('W3TC_INC_OPTIONS_DIR', W3TC_INC_DIR . '/options');
 define('W3TC_LIB_DIR', W3TC_DIR . '/lib');
 define('W3TC_LIB_W3_DIR', W3TC_LIB_DIR . '/W3');
 define('W3TC_LIB_MINIFY_DIR', W3TC_LIB_DIR . '/Minify');
@@ -29,59 +35,28 @@ define('W3TC_LIB_CF_DIR', W3TC_LIB_DIR . '/CF');
 define('W3TC_LIB_CSSTIDY_DIR', W3TC_LIB_DIR . '/CSSTidy');
 define('W3TC_LIB_MICROSOFT_DIR', W3TC_LIB_DIR . '/Microsoft');
 define('W3TC_LIB_NUSOAP_DIR', W3TC_LIB_DIR . '/Nusoap');
+define('W3TC_LIB_NETDNA_DIR', W3TC_LIB_DIR . '/NetDNA');
+define('W3TC_LIB_OAUTH_DIR', W3TC_LIB_DIR . '/OAuth');
+define('W3TC_LIB_NEWRELIC_DIR', W3TC_LIB_DIR . '/NewRelic');
 define('W3TC_PLUGINS_DIR', W3TC_DIR . '/plugins');
 define('W3TC_INSTALL_DIR', W3TC_DIR . '/wp-content');
 define('W3TC_INSTALL_MINIFY_DIR', W3TC_INSTALL_DIR . '/w3tc/min');
+define('W3TC_LANGUAGES_DIR', W3TC_DIR . '/languages');
 
-define('W3TC_BLOGNAMES_PATH', WP_CONTENT_DIR . '/w3-total-cache-blognames.php');
-define('W3TC_BLOGNAME', w3_get_blogname());
-define('W3TC_SUFFIX', (W3TC_BLOGNAME != '' ? '-' . W3TC_BLOGNAME : ''));
+define('W3TC_CACHE_DIR', WP_CONTENT_DIR . '/cache');
+define('W3TC_CONFIG_DIR', WP_CONTENT_DIR . '/w3tc-config');
+define('W3TC_CACHE_CONFIG_DIR', W3TC_CACHE_DIR  . '/config');
+define('W3TC_CACHE_MINIFY_DIR', W3TC_CACHE_DIR  . '/minify');
+define('W3TC_CACHE_PAGE_ENHANCED_DIR', W3TC_CACHE_DIR  . '/page_enhanced');
+define('W3TC_CACHE_TMP_DIR', W3TC_CACHE_DIR . '/tmp');
+define('W3TC_CACHE_BLOGMAP_FILENAME', W3TC_CACHE_DIR . '/blogs.php');
 
 defined('WP_CONTENT_DIR') || define('WP_CONTENT_DIR', realpath(W3TC_DIR . '/../..'));
-define('WP_CONTENT_DIR_PATH', dirname(WP_CONTENT_DIR));
-define('WP_CONTENT_DIR_NAME', basename(WP_CONTENT_DIR));
-define('W3TC_CONTENT_DIR_NAME', WP_CONTENT_DIR_NAME . '/w3tc' . W3TC_SUFFIX);
-define('W3TC_CONTENT_DIR', WP_CONTENT_DIR_PATH . '/' . W3TC_CONTENT_DIR_NAME);
-define('W3TC_CONTENT_MINIFY_DIR_NAME', W3TC_CONTENT_DIR_NAME . '/min');
-define('W3TC_CONTENT_MINIFY_DIR', WP_CONTENT_DIR_PATH . '/' . W3TC_CONTENT_DIR_NAME . '/min');
-define('W3TC_CACHE_FILE_DBCACHE_DIR', W3TC_CONTENT_DIR . '/dbcache');
-define('W3TC_CACHE_FILE_OBJECTCACHE_DIR', W3TC_CONTENT_DIR . '/objectcache');
-define('W3TC_CACHE_FILE_PGCACHE_DIR', W3TC_CONTENT_DIR . '/pgcache');
-define('W3TC_CACHE_FILE_MINIFY_DIR', W3TC_CONTENT_DIR . '/min');
-define('W3TC_LOG_DIR', W3TC_CONTENT_DIR . '/log');
-define('W3TC_TMP_DIR', W3TC_CONTENT_DIR . '/tmp');
-define('W3TC_CONFIG_PATH', WP_CONTENT_DIR . '/w3-total-cache-config' . W3TC_SUFFIX . '.php');
-define('W3TC_CONFIG_PREVIEW_PATH', WP_CONTENT_DIR . '/w3-total-cache-config' . W3TC_SUFFIX . '-preview.php');
-define('W3TC_CONFIG_MASTER_PATH', WP_CONTENT_DIR . '/w3-total-cache-config.php');
-define('W3TC_MINIFY_LOG_FILE', W3TC_LOG_DIR . '/minify.log');
+
 define('W3TC_CDN_COMMAND_UPLOAD', 1);
 define('W3TC_CDN_COMMAND_DELETE', 2);
 define('W3TC_CDN_COMMAND_PURGE', 3);
 define('W3TC_CDN_TABLE_QUEUE', 'w3tc_cdn_queue');
-define('W3TC_CDN_LOG_FILE', W3TC_LOG_DIR . '/cdn.log');
-define('W3TC_VARNISH_LOG_FILE', W3TC_LOG_DIR . '/varnish.log');
-
-define('W3TC_MARKER_BEGIN_WORDPRESS', '# BEGIN WordPress');
-define('W3TC_MARKER_BEGIN_PGCACHE_CORE', '# BEGIN W3TC Page Cache core');
-define('W3TC_MARKER_BEGIN_PGCACHE_CACHE', '# BEGIN W3TC Page Cache cache');
-define('W3TC_MARKER_BEGIN_PGCACHE_LEGACY', '# BEGIN W3TC Page Cache');
-define('W3TC_MARKER_BEGIN_PGCACHE_WPSC', '# BEGIN WPSuperCache');
-define('W3TC_MARKER_BEGIN_BROWSERCACHE_CACHE', '# BEGIN W3TC Browser Cache');
-define('W3TC_MARKER_BEGIN_BROWSERCACHE_NO404WP', '# BEGIN W3TC Skip 404 error handling by WordPress for static files');
-define('W3TC_MARKER_BEGIN_MINIFY_CORE', '# BEGIN W3TC Minify core');
-define('W3TC_MARKER_BEGIN_MINIFY_CACHE', '# BEGIN W3TC Minify cache');
-define('W3TC_MARKER_BEGIN_MINIFY_LEGACY', '# BEGIN W3TC Minify');
-
-define('W3TC_MARKER_END_WORDPRESS', '# END WordPress');
-define('W3TC_MARKER_END_PGCACHE_CORE', '# END W3TC Page Cache core');
-define('W3TC_MARKER_END_PGCACHE_CACHE', '# END W3TC Page Cache cache');
-define('W3TC_MARKER_END_PGCACHE_LEGACY', '# END W3TC Page Cache');
-define('W3TC_MARKER_END_PGCACHE_WPSC', '# END WPSuperCache');
-define('W3TC_MARKER_END_BROWSERCACHE_CACHE', '# END W3TC Browser Cache');
-define('W3TC_MARKER_END_BROWSERCACHE_NO404WP', '# END W3TC Skip 404 error handling by WordPress for static files');
-define('W3TC_MARKER_END_MINIFY_CORE', '# END W3TC Minify core');
-define('W3TC_MARKER_END_MINIFY_CACHE', '# END W3TC Minify cache');
-define('W3TC_MARKER_END_MINIFY_LEGACY', '# END W3TC Minify');
 
 define('W3TC_INSTALL_FILE_ADVANCED_CACHE', W3TC_INSTALL_DIR . '/advanced-cache.php');
 define('W3TC_INSTALL_FILE_DB', W3TC_INSTALL_DIR . '/db.php');
@@ -89,10 +64,14 @@ define('W3TC_INSTALL_FILE_OBJECT_CACHE', W3TC_INSTALL_DIR . '/object-cache.php')
 
 define('W3TC_ADDIN_FILE_ADVANCED_CACHE', WP_CONTENT_DIR . '/advanced-cache.php');
 define('W3TC_ADDIN_FILE_DB', WP_CONTENT_DIR . '/db.php');
+define('W3TC_FILE_DB_CLUSTER_CONFIG', WP_CONTENT_DIR . '/db-cluster-config.php');
 define('W3TC_ADDIN_FILE_OBJECT_CACHE', WP_CONTENT_DIR . '/object-cache.php');
 
-require_once W3TC_INC_DIR . '/functions/compat.php';
-require_once W3TC_INC_DIR . '/functions/plugin.php';
+
+define('W3TC_WP_LOADER', (defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/plugins') . '/w3tc-wp-loader.php');
+
+w3_require_once(W3TC_INC_DIR . '/functions/compat.php');
+w3_require_once(W3TC_INC_DIR . '/functions/plugin.php');
 
 @ini_set('pcre.backtrack_limit', 4194304);
 @ini_set('pcre.recursion_limit', 4194304);
@@ -126,6 +105,37 @@ function w3_is_xml($content) {
     $content = ltrim($content, "\x00\x09\x0A\x0D\x20\xBB\xBF\xEF");
 
     return (stripos($content, '<?xml') === 0 || stripos($content, '<html') === 0 || stripos($content, '<!DOCTYPE') === 0);
+}
+
+/*
+ * Returns URI from filename/dirname
+ *
+ * @return string
+ */
+function w3_filename_to_url($filename) {
+    // using wp-content instead of document_root as known dir since dirbased
+    // multisite wp adds blogname to the path inside site_url
+    if (substr($filename, 0, strlen(WP_CONTENT_DIR)) != WP_CONTENT_DIR)
+        return '';
+    $uri_from_wp_content = substr($filename, strlen(WP_CONTENT_DIR));
+
+    $site_url_ssl = w3_get_url_ssl(w3_get_home_url());
+
+    $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_document_root())), '/');
+
+    $url = $site_url_ssl . '/' . $content_path . $uri_from_wp_content;
+
+    return $url;
+}
+
+/**
+ * Returns true if database cluster is used
+ *
+ * @return boolean
+ */
+function w3_is_dbcluster() {
+    return defined('W3TC_FILE_DB_CLUSTER_CONFIG') && @file_exists(W3TC_FILE_DB_CLUSTER_CONFIG)
+        && defined('W3TC_ENTERPRISE') && W3TC_ENTERPRISE;
 }
 
 /**
@@ -212,21 +222,14 @@ function w3_is_database_error(&$content) {
 }
 
 /**
- * Returns true if preview config exists
- *
- * @return boolean
- */
-function w3_is_preview_config() {
-    return file_exists(W3TC_CONFIG_PREVIEW_PATH);
-}
-
-/**
  * Retuns true if preview settings active
  *
  * @return boolean
  */
 function w3_is_preview_mode() {
-    return (w3_is_preview_config() && (defined('WP_ADMIN') || isset($_REQUEST['w3tc_preview']) || (isset($_SERVER['HTTP_REFERER']) && strstr($_SERVER['HTTP_REFERER'], 'w3tc_preview') !== false)));
+    return (isset($_REQUEST['w3tc_preview']) || 
+        (isset($_SERVER['HTTP_REFERER']) && 
+            strstr($_SERVER['HTTP_REFERER'], 'w3tc_preview') !== false));
 }
 
 /**
@@ -263,7 +266,8 @@ function w3_is_nginx() {
  * @return boolean
  */
 function w3_is_cdn_engine($engine) {
-    return in_array($engine, array('ftp', 's3', 'cf', 'cf2', 'rscf', 'azure', 'mirror', 'netdna', 'cotendo', 'edgecast'));
+    return in_array($engine, array('ftp', 's3', 'cf', 'cf2', 'rscf', 'azure', 'mirror', 'netdna', 
+                                'cotendo', 'akamai', 'edgecast', 'att'));
 }
 
 /**
@@ -273,7 +277,15 @@ function w3_is_cdn_engine($engine) {
  * @return bool
  */
 function w3_is_cdn_mirror($engine) {
-    return in_array($engine, array('mirror', 'netdna', 'cotendo', 'cf2', 'edgecast'));
+    return in_array($engine, array('mirror', 'netdna', 'cotendo', 'cf2', 'akamai', 'edgecast', 'att'));
+}
+
+/**
+ * Returns true if CDN has purge all support
+ * @param $engine
+ */
+function w3_cdn_can_purge_all($engine) {
+    return in_array($engine, array('cotendo', 'edgecast', 'att', 'netdna'));
 }
 
 /**
@@ -284,10 +296,6 @@ function w3_is_cdn_mirror($engine) {
  */
 function w3_get_domain($host) {
     $host = strtolower($host);
-
-    if (strpos($host, 'www.') === 0) {
-        $host = substr($host, 4);
-    }
 
     if (($pos = strpos($host, ':')) !== false) {
         $host = substr($host, 0, $pos);
@@ -327,114 +335,208 @@ function w3_get_blognames() {
 }
 
 /**
- * Load blognames from file
- *
- * @return array
- */
-function w3_load_blognames() {
-    $blognames = include W3TC_BLOGNAMES_PATH;
-
-    return $blognames;
-}
-
-/**
- * Save blognames into file
- *
- * @param string $blognames
- * @return boolean
- */
-function w3_save_blognames($blognames = null) {
-    if (!$blognames) {
-        $blognames = w3_get_blognames();
-    }
-
-    $strings = array();
-
-    foreach ($blognames as $blogname) {
-        $strings[] = sprintf("'%s'", addslashes($blogname));
-    }
-
-    $data = sprintf('<?php return array(%s);', implode(', ', $strings));
-
-    return @file_put_contents(W3TC_BLOGNAMES_PATH, $data);
-}
-
-/**
- * Detect WPMU blogname
- *
- * @return string
- */
-function w3_get_blogname() {
-    static $blogname = null;
-
-    if ($blogname === null) {
-        if (w3_is_network()) {
-            $host = w3_get_host();
-            $domain = w3_get_domain($host);
-
-            if (w3_is_subdomain_install()) {
-                $blogname = $domain;
-            } else {
-                $uri = $_SERVER['REQUEST_URI'];
-                $base_path = w3_get_base_path();
-
-                if ($base_path != '' && strpos($uri, $base_path) === 0) {
-                    $uri = substr_replace($uri, '/', 0, strlen($base_path));
-                }
-
-                $blogname = w3_get_blogname_from_uri($uri);
-
-                if ($blogname != '') {
-                    $blogname = $blogname . '.' . $domain;
-                } else {
-                    $blogname = $domain;
-                }
-            }
-        } else {
-            $blogname = '';
-        }
-    }
-
-    return $blogname;
-}
-
-/**
- * Returns blogname from URI
- *
- * @param string $uri
- * @return string
- */
-function w3_get_blogname_from_uri($uri) {
-    $blogname = '';
-    $matches = null;
-    $uri = strtolower($uri);
-
-    if (preg_match('~^/([a-z0-9-]+)/~', $uri, $matches)) {
-        if (file_exists(W3TC_BLOGNAMES_PATH)) {
-            // Get blognames from cache
-            $blognames = w3_load_blognames();
-        } elseif (isset($GLOBALS['wpdb'])) {
-            // Get blognames from DB
-            $blognames = w3_get_blognames();
-        } else {
-            $blognames = array();
-        }
-
-        if (is_array($blognames) && in_array($matches[1], $blognames)) {
-            $blogname = $matches[1];
-        }
-    }
-
-    return $blogname;
-}
-
-/**
  * Returns current blog ID
  *
  * @return integer
  */
 function w3_get_blog_id() {
-    return (isset($GLOBALS['blog_id']) ? (int) $GLOBALS['blog_id'] : 0);
+    global $w3_current_blog_id;
+    
+    if (!is_null($w3_current_blog_id))
+        return $w3_current_blog_id;
+    
+    if (!w3_is_network() || is_network_admin()) {
+        $w3_current_blog_id = 0;
+        return $w3_current_blog_id;
+    }
+
+    $uri = w3_generate_request_uri();
+
+    $w3_current_blog_id = w3_blogmap_get_blog_id($uri);
+
+    return $w3_current_blog_id;
+}
+
+/**
+ * @return string
+ */
+function w3_generate_request_uri() {
+    $host = w3_get_domain(w3_get_host());
+    $site_home_uri = w3_get_base_path();
+
+    // default path
+    $uri = $host . $site_home_uri;
+
+    if (!w3_is_subdomain_install()) {
+        // try subdir blog
+        $request_uri = rtrim($_SERVER['REQUEST_URI'], '/');
+        $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_site_root())), '/');
+        if (substr($request_uri, 1, strlen($content_path)) != $content_path && substr($request_uri, 0, strlen($site_home_uri)) == $site_home_uri) {
+            $request_path_in_wp = '/' . substr($request_uri, strlen($site_home_uri));
+
+            $n = strpos($request_path_in_wp, '/', 1);
+            if ($n === false) {
+                // case for homepage like /mywp/myblog
+                // unfortunately catches also /index.php here and other pages
+                // of "default" blog
+                $blog_path_in_wp = substr($request_path_in_wp, 1);
+            } else
+                $blog_path_in_wp = substr($request_path_in_wp, 1, $n);
+
+            $uri = $host . $site_home_uri . $blog_path_in_wp;
+            return $uri;
+        }
+        return $uri;
+    }
+    return $uri;
+}
+
+/**
+ * Returns blogmap filename by home url
+ *
+ * @param string $blog_home_url
+ * @return string
+ */
+function w3_blogmap_filename($blog_home_url) {
+    if (!defined('W3TC_BLOG_LEVELS'))
+        return W3TC_CACHE_BLOGMAP_FILENAME;
+    else {
+        $filename = dirname(W3TC_CACHE_BLOGMAP_FILENAME) . '/' .
+            basename(W3TC_CACHE_BLOGMAP_FILENAME, '.php') . '/';
+
+        $s = md5($blog_home_url);
+        for ($n = 0; $n < W3TC_BLOG_LEVELS; $n++)
+            $filename .= substr($s, $n, 1) . '/';
+
+        return $filename . basename(W3TC_CACHE_BLOGMAP_FILENAME);
+    }
+}
+
+/**
+ * Returns blog_id by home url
+ * If database not initialized yet - returns 0
+ *
+ * @param string $blog_home_url
+ * @return integer
+ */
+function w3_blogmap_get_blog_id($blog_home_url) {
+
+    $blog_data = w3_get_blogmap_data($blog_home_url);
+    if ($blog_data && !is_int($blog_data))
+        return substr($blog_data, 1);
+
+    // we've faced new unknown yet url
+
+    if (isset($GLOBALS['current_blog']))
+        return $GLOBALS['current_blog']->blog_id;
+
+    // use master config until data set and
+    $GLOBALS['w3tc_blogmap_register_new_item'] = $blog_home_url;
+    
+    return 0;
+}
+
+/**
+ * @return bool
+ */
+function w3_force_master() {
+    if (!w3_is_multisite())
+        return false;
+    $blog_home_url = w3_generate_request_uri();
+    $blog_data = w3_get_blogmap_data($blog_home_url);
+    if (is_null($blog_data) || is_int($blog_data)) {
+        // use master config until data set and
+        $GLOBALS['w3tc_blogmap_register_new_item'] = $blog_home_url;
+        return true;
+    }
+    return $blog_data[0] == 'm';
+}
+
+/**
+ * @param $blog_home_url
+ * @return null|string
+ */
+function w3_get_blogmap_data($blog_home_url) {
+    $filename = w3_blogmap_filename($blog_home_url);
+
+    if (file_exists($filename)) {
+        $data = file_get_contents($filename);
+        $blog_data = @eval($data);
+
+        if (is_array($blog_data) && isset($blog_data[$blog_home_url]))
+            return $blog_data[$blog_home_url];
+    }
+    return null;
+}
+
+/**
+ * Returns path to section's cache dir
+ *
+ * @param string $section
+ * @return string
+ */
+function w3_cache_dir($section) {
+    return W3TC_CACHE_DIR . '/' . $section;
+}
+
+/**
+ * Returns path to blog's cache dir
+ *
+ * @param string $section
+ * @param null|int $blog_id
+ * @return string
+ */
+function w3_cache_blog_dir($section, $blog_id = null) {
+    if (is_null($blog_id))
+        $blog_id = w3_get_blog_id();
+
+    $postfix = sprintf('%06d', $blog_id);
+
+    if (defined('W3TC_BLOG_LEVELS')) {
+        for ($n = 0; $n < W3TC_BLOG_LEVELS; $n++)
+            $postfix = substr($postfix, strlen($postfix) - 1 - $n, 1) . '/' .
+                $postfix;
+    }
+
+    return w3_cache_dir($section) . '/' . $postfix;
+}
+
+/**
+ * Return full path to log file for module
+ * Path used in priority
+ * 1) W3TC_DEBUG_DIR
+ * 2) WP_DEBUG_LOG
+ * 3) W3TC_CACHE_DIR
+ *
+ * @param $module
+ * @param null $blog_id
+ * @return string
+ */
+function w3_debug_log($module, $blog_id = null)  {
+    if (is_null($blog_id))
+        $blog_id = w3_get_blog_id();
+
+    $postfix = sprintf('%06d', $blog_id);
+
+    if (defined('W3TC_BLOG_LEVELS')) {
+        for ($n = 0; $n < W3TC_BLOG_LEVELS; $n++)
+            $postfix = substr($postfix, strlen($postfix) - 1 - $n, 1) . '/' .
+                $postfix;
+    }
+    $from_dir = W3TC_CACHE_DIR;
+    if (defined('W3TC_DEBUG_DIR') && W3TC_DEBUG_DIR) {
+        $dir_path = W3TC_DEBUG_DIR;
+        if (!is_dir(W3TC_DEBUG_DIR))
+            $from_dir = dirname(W3TC_DEBUG_DIR);
+    } else
+        $dir_path = w3_cache_dir('log');
+    $filename = $dir_path . '/' . $postfix . '/' . $module . '.log';
+    if (!is_dir(dirname($filename))) {
+        w3_require_once( W3TC_INC_DIR . '/functions/file.php');
+        w3_mkdir_from(dirname($filename), $from_dir);
+    }
+
+    return $filename;
 }
 
 /**
@@ -508,10 +610,19 @@ function w3_get_domain_url_regexp() {
  */
 function w3_get_home_url() {
     static $home_url = null;
-
+    
     if ($home_url === null) {
-        $home_url = get_option('home');
-        $home_url = rtrim($home_url, '/');
+        $config = w3_instance('W3_Config');
+        if ($config->get_boolean('common.force_master')) {
+            $home_url = get_home_url();
+        } else {
+            // get_option is unusable here, it can cause problem when objCache isn't yet initialized
+            // Which is why we save the 'home' option in our ConfigCache
+            // We don't just use $config->get_string, because we want the cache to rebuild
+            // when 'wordpress.home' is not (yet) present
+            $home_url = $config->get_cache_option('wordpress.home');
+            $home_url = rtrim($home_url, '/');
+        }
     }
 
     return $home_url;
@@ -581,9 +692,13 @@ function w3_get_site_url_ssl() {
  */
 function w3_get_document_root() {
     static $document_root = null;
+    $len = strlen($_SERVER['PHP_SELF']);
+    $split = $len/2;
 
     if ($document_root === null) {
-        if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+        if (!empty($_SERVER['SCRIPT_FILENAME']) && $_SERVER['SCRIPT_FILENAME'] == $_SERVER['PHP_SELF']) {
+            $document_root = w3_get_site_root();
+        } elseif (!empty($_SERVER['SCRIPT_FILENAME'])) {
             $document_root = substr(w3_path($_SERVER['SCRIPT_FILENAME']), 0, -strlen(w3_path($_SERVER['PHP_SELF'])));
         } elseif (!empty($_SERVER['PATH_TRANSLATED'])) {
             $document_root = substr(w3_path($_SERVER['PATH_TRANSLATED']), 0, -strlen(w3_path($_SERVER['PHP_SELF'])));
@@ -761,7 +876,14 @@ function w3_get_host() {
     static $host = null;
 
     if ($host === null) {
-        $host = (!empty($_SERVER['HTTP_X_FORWARDED_HOST']) ? $_SERVER['HTTP_X_FORWARDED_HOST'] : $_SERVER['HTTP_HOST']);
+        if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+            $host = $_SERVER['HTTP_X_FORWARDED_HOST'];
+        } elseif (!empty($_SERVER['HTTP_HOST'])) {
+            // HTTP_HOST sometimes is not set causing warning
+            $host = $_SERVER['HTTP_HOST'];
+        } else {
+            $host = '';
+        }
     }
 
     return $host;
@@ -848,7 +970,8 @@ function w3_can_check_rules() {
  * @return bool
  */
 function w3_can_cdn_purge($engine) {
-    return in_array($engine, array('ftp', 's3', 'cf', 'cf2', 'rscf', 'azure', 'netdna', 'cotendo', 'edgecast'));
+    return in_array($engine, array('ftp', 's3', 'cf', 'cf2', 'rscf', 'azure', 'netdna', 'cotendo', 
+                                   'edgecast', 'akamai', 'att'));
 }
 
 /**
@@ -861,14 +984,14 @@ function w3_parse_path($path) {
     $path = str_replace(array(
         '%BLOG_ID%',
         '%POST_ID%',
-        '%BLOGNAME%',
+        '%BLOG_ID%',
         '%HOST%',
         '%DOMAIN%',
         '%BASE_PATH%'
     ), array(
         (isset($GLOBALS['blog_id']) ? (int) $GLOBALS['blog_id'] : 0),
         (isset($GLOBALS['post_id']) ? (int) $GLOBALS['post_id'] : 0),
-        w3_get_blogname(),
+        w3_get_blog_id(),
         w3_get_host(),
         w3_get_domain(w3_get_host()),
         trim(w3_get_base_path(), '/')
@@ -967,7 +1090,7 @@ function w3_translate_file($file) {
  * @return string
  */
 function w3_remove_query($url) {
-    $url = preg_replace('~[&\?]+(ver=[a-z0-9-_\.]+|[0-9-]+)~i', '', $url);
+    $url = preg_replace('~[&\?]+(ver=([a-z0-9-_\.]+|[0-9-]+))~i', '', $url);
 
     return $url;
 }
@@ -1027,9 +1150,10 @@ function w3_http_date($time) {
  * @return string
  */
 function w3_redirect($url = '', $params = array()) {
-    require_once W3TC_INC_DIR . '/functions/url.php';
+    w3_require_once(W3TC_INC_DIR . '/functions/url.php');
 
     $url = w3_url_format($url, $params);
+    do_action('w3_redirect');
 
     @header('Location: ' . $url);
     exit();
@@ -1107,8 +1231,16 @@ function w3_get_engine_name($engine) {
             $engine_name = 'cotendo';
             break;
 
+        case 'akamai':
+            $engine_name = 'akamai';
+            break;
+
         case 'edgecast':
             $engine_name = 'media template procdn / edgecast';
+            break;
+
+        case 'att':
+            $engine_name = 'at&amp;t';
             break;
 
         default:
@@ -1212,13 +1344,13 @@ function w3_escape_comment($comment) {
  * @param string $class
  * @return object
  */
-function &w3_instance($class) {
+function w3_instance($class) {
     static $instances = array();
 
     if (!isset($instances[$class])) {
-        require_once W3TC_LIB_W3_DIR . '/' .
-                str_replace('_', '/', substr($class, 3)) . '.php';
-        @$instances[$class] = & new $class();
+        w3_require_once( W3TC_LIB_W3_DIR . '/' .
+                str_replace('_', '/', substr($class, 3)) . '.php');
+        $instances[$class] = new $class();
     }
 
     $v = $instances[$class];   // Don't return reference
@@ -1226,19 +1358,158 @@ function &w3_instance($class) {
 }
 
 /**
- * Loads plugins
+ * Requires and keeps track of which files has already been loaded.
  *
- * @return void
+ * @param string $path Absolute path to the file
  */
-function w3_load_plugins() {
-    $dir = @opendir(W3TC_PLUGINS_DIR);
+function w3_require_once($path) {
+    static $files = array();
 
-    if ($dir) {
-        while (($entry = @readdir($dir)) !== false) {
-            if (strrchr($entry, '.') === '.php') {
-                require_once W3TC_PLUGINS_DIR . '/' . $entry;
-            }
-        }
-        @closedir($dir);
+    if (!isset($files[$path])) {
+        $files[$path] = 1;
+        require_once $path;
     }
+}
+
+/**
+ * Detects post ID
+ *
+ * @return integer
+ */
+function w3_detect_post_id() {
+    global $posts, $comment_post_ID, $post_ID;
+
+    if ($post_ID) {
+        return $post_ID;
+    } elseif ($comment_post_ID) {
+        return $comment_post_ID;
+    } elseif (is_single() || is_page() && count($posts)) {
+        return $posts[0]->ID;
+    } elseif (isset($_REQUEST['p'])) {
+        return (integer) $_REQUEST['p'];
+    }
+
+    return 0;
+}
+
+function w3_get_instance_id() {
+    static $instance_id;
+
+    if(!isset($instance_id)) {
+        $config = w3_instance('W3_Config');
+        $instance_id = $config->get_integer('common.instance_id', 0);
+    }
+    return $instance_id;
+}
+
+
+/**
+ * Checks if post should be flushed or not. Returns true if it should not be flushed
+ * @param $post
+ * @param $module which cache module to check against (pgcache, varnish, cdncache, dbcache or objectcache)
+ * @param W3_Config $config
+ * @return bool
+ */
+function w3_is_flushable_post($post, $module, $config) {
+    if (is_numeric($post))
+        $post = get_post($post);
+    $post_status = array('publish');
+    // dont flush when we have post "attachment"
+    // its child of the post and is flushed always when post is published, while not changed in fact
+    $post_type = array('revision', 'attachment');
+    switch($module) {
+        case 'pgcache':
+        case 'varnish':
+        case 'cdncache':
+            if (!$config->get_boolean('pgcache.reject.logged'))
+                $post_status[] = 'private';
+        break;
+        case 'dbcache':
+            if (!$config->get_boolean('dbcache.reject.logged'))
+                $post_status[] = 'private';
+            break;
+    }
+    $flushable = !in_array($post->post_type, $post_type) && in_array($post->post_status, $post_status);
+    return apply_filters('w3tc_flushable_post', $flushable, $post, $module);
+}
+
+/**
+ * @param $filename
+ * @param $content
+ * @return bool
+ */
+function file_put_contents_atomic($filename, $content) {
+
+    $temp = tempnam(W3TC_CACHE_TMP_DIR, 'temp');
+    if (!($f = @fopen($temp, 'wb'))) {
+        $temp = W3TC_CACHE_TMP_DIR . DIRECTORY_SEPARATOR . uniqid('temp');
+        if (!($f = @fopen($temp, 'wb'))) {
+            trigger_error("file_put_contents_atomic() : error writing temporary file '$temp'", E_USER_WARNING);
+            return false;
+        }
+    }
+
+    fwrite($f, $content);
+    fclose($f);
+
+    if (!@rename($temp, $filename)) {
+        @unlink($filename);
+        @rename($temp, $filename);
+    }
+    $chmod = 0644;
+    if (defined('FS_CHMOD_FILE'))
+        $chmod = FS_CHMOD_FILE;
+    @chmod($filename, $chmod);
+    return true;
+}
+
+/**
+ * Takes seconds and converts to array('Nh ','Nm ', 'Ns ', 'Nms ') or "Nh Nm Ns Nms"
+ * @param $input
+ * @param bool $string
+ * @return array|string
+ */
+function w3_convert_secs_to_time($input, $string = true) {
+    $input = (double)$input;
+    $time = array();
+    $msecs = floor($input*1000 % 1000);
+    $seconds = $input % 60;
+    $input = floor($input / 60);
+    $minutes = $input % 60;
+    $input = floor($input / 60);
+    $hours = $input % 60;
+    $input = floor($input / 60);
+    if ($hours)
+        $time[] = sprintf(__('%dh', 'w3-total-cache'), $hours);
+    if ($minutes)
+        $time[] = sprintf(__('%dm', 'w3-total-cache'), $minutes);
+    if ($seconds)
+        $time[] = sprintf(__('%ds', 'w3-total-cache'), $seconds);
+    if ($msecs)
+        $time[] = sprintf(__('%dms', 'w3-total-cache'), $msecs);
+
+    if(empty($time))
+        $time[] = sprintf(__('%dms', 'w3-total-cache'), 0);
+    if ($string)
+        return implode(' ', $time);
+    return $time;
+}
+
+/**
+ * @return string
+ */
+function w3_w3tc_release_version() {
+    if (defined('W3TC_ENTERPRISE') && W3TC_ENTERPRISE)
+        return 'enterprise';
+    if (defined('W3TC_PRO') && W3TC_PRO)
+        return 'pro';
+    return 'community';
+}
+
+function w3_is_pro() {
+    return defined('W3TC_PRO') && W3TC_PRO;
+}
+
+function w3_is_enterprise() {
+    return defined('W3TC_ENTERPRISE') && W3TC_ENTERPRISE;
 }

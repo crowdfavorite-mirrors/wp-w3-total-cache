@@ -7,7 +7,7 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_LIB_MINIFY_DIR . '/Minify/Controller/Base.php';
+w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Controller/Base.php');
 
 /**
  * Controller class for emulating version 1 of minify.php

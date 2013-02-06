@@ -1,4 +1,7 @@
 <?php
+// To support legacy updates with old add-ins
+if (class_exists('W3_ObjectCache'))
+    return;
 
 /**
  * W3 Object Cache object
@@ -61,6 +64,13 @@ class W3_ObjectCache {
     var $debug_info = array();
 
     /**
+     * Blog id of cache
+     *
+     * @var integer
+     */
+    private $_blog_id;
+
+    /**
      * Key cache
      *
      * @var array
@@ -82,11 +92,17 @@ class W3_ObjectCache {
     var $_caching = false;
 
     /**
+     * Dynamic Caching flag
+     *
+     * @var boolean
+     */
+    var $_can_cache_dynamic = null;
+    /**
      * Cache reject reason
      *
      * @var string
      */
-    var $_cache_reject_reason = '';
+    var $cache_reject_reason = '';
 
     /**
      * Lifetime
@@ -107,7 +123,7 @@ class W3_ObjectCache {
      *
      * @return W3_ObjectCache
      */
-    function &instance() {
+    function instance() {
         return w3_instance('W3_ObjectCache');
     }
 
@@ -117,27 +133,14 @@ class W3_ObjectCache {
     function __construct() {
         global $_wp_using_ext_object_cache;
 
-        $this->_config = & w3_instance('W3_Config');
+        $this->_config = w3_instance('W3_Config');
         $this->_lifetime = $this->_config->get_integer('objectcache.lifetime');
         $this->_debug = $this->_config->get_boolean('objectcache.debug');
         $this->_caching = $_wp_using_ext_object_cache = $this->_can_cache();
-
         $this->global_groups = $this->_config->get_array('objectcache.groups.global');
         $this->nonpersistent_groups = $this->_config->get_array('objectcache.groups.nonpersistent');
 
-        if ($this->_can_ob()) {
-            ob_start(array(
-                          &$this,
-                          'ob_callback'
-                     ));
-        }
-    }
-
-    /**
-     * PHP4 style constructor
-     */
-    function W3_ObjectCache() {
-        $this->__construct();
+        $this->_blog_id = w3_get_blog_id();
     }
 
     /**
@@ -157,9 +160,15 @@ class W3_ObjectCache {
 
         if ($internal) {
             $value = $this->cache[$key];
-        } elseif ($this->_caching && !in_array($group, $this->nonpersistent_groups)) {
-            $cache = & $this->_get_cache();
-            $value = $cache->get($key);
+        } elseif ($this->_caching &&
+                  !in_array($group, $this->nonpersistent_groups) &&
+                    $this->_check_can_cache_runtime($group)) {
+            $cache = $this->_get_cache(null, $group);
+            $v = $cache->get($key);
+            if (is_array($v) && $v['content'] != null)
+                $value = $v['content'];
+            else
+                $value = false;
         } else {
             $value = false;
         }
@@ -199,7 +208,7 @@ class W3_ObjectCache {
                 'group' => $group,
                 'cached' => $cached,
                 'internal' => $internal,
-                'data_size' => ($value ? strlen(serialize($value)) : 0),
+                'data_size' => ($value ? strlen(serialize($value)) : ''),
                 'time' => $time
             );
         }
@@ -225,10 +234,24 @@ class W3_ObjectCache {
 
         $this->cache[$key] = $data;
 
-        if ($this->_caching && !in_array($group, $this->nonpersistent_groups)) {
-            $cache = & $this->_get_cache();
+        if ($this->_caching && 
+                !in_array($group, $this->nonpersistent_groups) &&
+                $this->_check_can_cache_runtime($group)) {
+            $cache = $this->_get_cache(null, $group);
 
-            return $cache->set($key, $data, ($expire ? $expire : $this->_lifetime));
+            if ($id == 'alloptions' && $group == 'options') {
+                // alloptions are deserialized on the start when some classes are not loaded yet
+                // so postpone it until requested
+                foreach ($data as $k => $v) {
+                    if (is_object($v)) {
+                        $data[$k] = serialize($v);
+                    }
+                }
+            }
+
+            $v = array('content' => $data);
+            return $cache->set($key, $v,
+                ($expire ? $expire : $this->_lifetime));
         }
 
         return true;
@@ -252,7 +275,7 @@ class W3_ObjectCache {
         unset($this->cache[$key]);
 
         if ($this->_caching && !in_array($group, $this->nonpersistent_groups)) {
-            $cache = & $this->_get_cache();
+            $cache = $this->_get_cache(null, $group);
 
             return $cache->delete($key);
         }
@@ -315,8 +338,18 @@ class W3_ObjectCache {
     function flush() {
         $this->cache = array();
 
-        if ($this->_caching) {
-            $cache = & $this->_get_cache();
+        global $w3_multisite_blogs;
+        if (isset($w3_multisite_blogs)) {
+            foreach($w3_multisite_blogs as $blog ){
+                $cache = $this->_get_cache($blog->userblog_id);
+                $cache->flush();
+            }
+        } else {
+            //Global groups are now stored in master cache so need to be able to flush it form network
+            if (is_network_admin())
+                $cache = $this->_get_cache(0);
+            else
+                $cache = $this->_get_cache();
 
             return $cache->flush();
         }
@@ -355,17 +388,53 @@ class W3_ObjectCache {
     }
 
     /**
-     * Output buffering callback
+     * Increment numeric cache item's value
      *
-     * @param string $buffer
-     * @return string
+     * @param int|string $key The cache key to increment
+     * @param int $offset The amount by which to increment the item's value. Default is 1.
+     * @param string $group The group the key is in.
+     * @return bool|int False on failure, the item's new value on success.
      */
-    function ob_callback(&$buffer) {
-        if ($buffer != '' && w3_is_xml($buffer)) {
-            $buffer .= "\r\n\r\n" . $this->_get_debug_info();
-        }
+    function incr( $key, $offset = 1, $group = 'default' ) {
+        $value = $this->get($key, $group);
+        if ($value === false)
+            return false;
 
-        return $buffer;
+        if (!is_numeric($value))
+            $value = 0;
+
+        $offset = (int) $offset;
+        $value += $offset;
+
+        if ( $value < 0 )
+            $value = 0;
+        $this->replace($key, $value, $group);
+        return $value;
+    }
+
+    /**
+     * Decrement numeric cache item's value
+     *
+     * @param int|string $key The cache key to increment
+     * @param int $offset The amount by which to decrement the item's value. Default is 1.
+     * @param string $group The group the key is in.
+     * @return bool|int False on failure, the item's new value on success.
+     */
+    function decr( $key, $offset = 1, $group = 'default' ) {
+        $value = $this->get($key, $group);
+        if ($value === false)
+            return false;
+
+        if (!is_numeric($value))
+            $value = 0;
+
+        $offset = (int) $offset;
+        $value -= $offset;
+
+        if ( $value < 0 )
+            $value = 0;
+        $this->replace($key, $value, $group);
+        return $value;
     }
 
     /**
@@ -381,7 +450,7 @@ class W3_ObjectCache {
         echo '<strong>Caching</strong>: ' . ($this->_caching ? 'enabled' : 'disabled') . '<br />';
 
         if (!$this->_caching) {
-            echo '<strong>Reject reason</strong>: ' . $this->_cache_reject_reason . '<br />';
+            echo '<strong>Reject reason</strong>: ' . $this->cache_reject_reason . '<br />';
         }
 
         echo '<strong>Total calls</strong>: ' . $this->cache_total . '<br />';
@@ -414,6 +483,16 @@ class W3_ObjectCache {
     }
 
     /**
+     * Switches context to another blog
+     *
+     * @param integer $blog_id
+     */
+    function switch_blog($blog_id) {
+        $this->reset();
+        $this->_blog_id = $blog_id;
+    }
+
+    /**
      * Returns cache key
      *
      * @param string $id
@@ -425,29 +504,18 @@ class W3_ObjectCache {
             $group = 'default';
         }
 
-        $blog_id = w3_get_blog_id();
+        $blog_id = $this->_blog_id;
+        if (in_array($group, $this->global_groups))
+            $blog_id = 0;
+
         $key_cache_id = $blog_id . $group . $id;
 
         if (isset($this->_key_cache[$key_cache_id])) {
             $key = $this->_key_cache[$key_cache_id];
         } else {
-            $host = w3_get_host();
-
-            if (in_array($group, $this->global_groups)) {
-                $host_id = $host;
-            } else {
-                $host_id = sprintf('%s_%d', $host, $blog_id);
-            }
-
-            $key = sprintf('w3tc_%s_object_%s', $host_id, md5($group . $id));
-
+            $key = md5($blog_id . $group . $id);
             $this->_key_cache[$key_cache_id] = $key;
         }
-
-        /**
-         * Allow to modify cache key by W3TC plugins
-         */
-        $key = w3tc_do_action('w3tc_objectcache_cache_key', $key);
 
         return $key;
     }
@@ -455,12 +523,19 @@ class W3_ObjectCache {
     /**
      * Returns cache object
      *
+     * @param int|null $blog_id
+     * @param string $group
      * @return W3_Cache_Base
      */
-    function &_get_cache() {
+    function _get_cache($blog_id = null, $group = '') {
         static $cache = array();
 
-        if (!isset($cache[0])) {
+        if (is_null($blog_id) && !in_array($group, $this->global_groups))
+            $blog_id = $this->_blog_id;
+        elseif (is_null($blog_id))
+            $blog_id = 0;
+
+        if (!isset($cache[$blog_id])) {
             $engine = $this->_config->get_string('objectcache.engine');
 
             switch ($engine) {
@@ -473,7 +548,7 @@ class W3_ObjectCache {
 
                 case 'file':
                     $engineConfig = array(
-                        'cache_dir' => W3TC_CACHE_FILE_OBJECTCACHE_DIR,
+                        'section' => 'object',
                         'locking' => $this->_config->get_boolean('objectcache.file.locking'),
                         'flush_timelimit' => $this->_config->get_integer('timelimit.cache_flush')
                     );
@@ -482,12 +557,17 @@ class W3_ObjectCache {
                 default:
                     $engineConfig = array();
             }
+            $engineConfig['blog_id'] = $blog_id;
+            $engineConfig['module'] = 'object';
+            $engineConfig['host'] = w3_get_host();
+            $engineConfig['instance_id'] = w3_get_instance_id();
 
-            require_once W3TC_LIB_W3_DIR . '/Cache.php';
-            @$cache[0] = & W3_Cache::instance($engine, $engineConfig);
+            w3_require_once(W3TC_LIB_W3_DIR . '/Cache.php');
+
+            $cache[$blog_id] = W3_Cache::instance($engine, $engineConfig);
         }
 
-        return $cache[0];
+        return $cache[$blog_id];
     }
 
     /**
@@ -500,7 +580,7 @@ class W3_ObjectCache {
          * Skip if disabled
          */
         if (!$this->_config->get_boolean('objectcache.enabled')) {
-            $this->_cache_reject_reason = 'Object caching is disabled';
+            $this->cache_reject_reason = 'Object caching is disabled';
 
             return false;
         }
@@ -509,7 +589,7 @@ class W3_ObjectCache {
          * Check for DONOTCACHEOBJECT constant
          */
         if (defined('DONOTCACHEOBJECT') && DONOTCACHEOBJECT) {
-            $this->_cache_reject_reason = 'DONOTCACHEOBJECT constant is defined';
+            $this->cache_reject_reason = 'DONOTCACHEOBJECT constant is defined';
 
             return false;
         }
@@ -518,68 +598,28 @@ class W3_ObjectCache {
     }
 
     /**
-     * Check if we can start OB
+     * Returns if we can cache, that condition can change in runtime
      *
+     * @param $group
      * @return boolean
      */
-    function _can_ob() {
-        /**
-         * Object cache should be enabled
-         */
-        if (!$this->_config->get_boolean('objectcache.enabled')) {
-            return false;
+    function _check_can_cache_runtime($group) {
+        //Need to be handled in wp admin as well as frontend
+        if (in_array($group, array('transient', 'site-transient')))
+            return true;
+
+        if ($this->_can_cache_dynamic != null)
+            return $this->_can_cache_dynamic;
+
+        if ($this->_caching) {
+            if (defined('WP_ADMIN')) {
+                $this->_can_cache_dynamic = false;
+                $this->cache_reject_reason = 'WP_ADMIN defined';
+                return $this->_can_cache_dynamic;
+            }
         }
 
-        /**
-         * Debug should be enabled
-         */
-        if (!$this->_debug) {
-            return false;
-        }
-
-        /**
-         * Skip if doing AJAX
-         */
-        if (defined('DOING_AJAX')) {
-            return false;
-        }
-
-        /**
-         * Skip if doing cron
-         */
-        if (defined('DOING_CRON')) {
-            return false;
-        }
-
-        /**
-         * Skip if APP request
-         */
-        if (defined('APP_REQUEST')) {
-            return false;
-        }
-
-        /**
-         * Skip if XMLRPC request
-         */
-        if (defined('XMLRPC_REQUEST')) {
-            return false;
-        }
-
-        /**
-         * Check for WPMU's and WP's 3.0 short init
-         */
-        if (defined('SHORTINIT') && SHORTINIT) {
-            return false;
-        }
-
-        /**
-         * Check User Agent
-         */
-        if (isset($_SERVER['HTTP_USER_AGENT']) && stristr($_SERVER['HTTP_USER_AGENT'], W3TC_POWERED_BY) !== false) {
-            return false;
-        }
-
-        return true;
+        return $this->_caching;
     }
 
     /**
@@ -593,7 +633,7 @@ class W3_ObjectCache {
         $debug_info .= sprintf("%s%s\r\n", str_pad('Caching: ', 20), ($this->_caching ? 'enabled' : 'disabled'));
 
         if (!$this->_caching) {
-            $debug_info .= sprintf("%s%s\r\n", str_pad('Reject reason: ', 20), $this->_cache_reject_reason);
+            $debug_info .= sprintf("%s%s\r\n", str_pad('Reject reason: ', 20), $this->cache_reject_reason);
         }
 
         $debug_info .= sprintf("%s%d\r\n", str_pad('Total calls: ', 20), $this->cache_total);

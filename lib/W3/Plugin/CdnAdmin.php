@@ -7,9 +7,9 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_INC_DIR . '/functions/file.php';
-require_once W3TC_INC_DIR . '/functions/http.php';
-require_once W3TC_LIB_W3_DIR . '/Plugin.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+w3_require_once(W3TC_INC_DIR . '/functions/http.php');
+w3_require_once(W3TC_LIB_W3_DIR . '/Plugin.php');
 
 /**
  * Class W3_Plugin_CdnAdmin
@@ -20,7 +20,7 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
      *
      * @return W3_Plugin_CdnCommon
      */
-    function &_get_common() {
+    function _get_common() {
         return w3_instance('W3_Plugin_CdnCommon');
     }
 
@@ -28,8 +28,7 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
      * Activation action
      */
     function activate() {
-        require_once W3TC_INC_DIR . '/functions/activation.php';
-
+        w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
         global $wpdb;
 
         $this->schedule();
@@ -40,15 +39,41 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
 
             w3_activate_error($error);
         }
+        if ($this->_config->get_boolean('cdn.enabled')) {
+            if (w3_can_modify_rules(w3_get_browsercache_rules_cache_path())) {
+                try {
+                    $this->write_rules();
+                } catch (Exception $e)
+                {}
+            }
+        }
     }
 
     /**
      * Deactivation action
      */
     function deactivate() {
+        $errors = array('errors' => array(), 'errors_short_form' => array(), 'ftp_form' => null);
+        $results = array();
+
         $this->table_delete();
         $this->unschedule_upload();
         $this->unschedule();
+        if (w3_can_modify_rules(w3_get_browsercache_rules_cache_path())) {
+            $results[] = $this->remove_rules_with_message();
+        }
+        if ($results) {
+            foreach ($results as $result) {
+                if ($result['errors']) {
+                    $errors['errors'] = array_merge($errors['errors'], $result['errors']);
+                    $errors['errors_short_form'] = array_merge($errors['errors_short_form'], $result['errors_short_form']);
+                    if (!isset($errors['ftp_form']))
+                        $errors['ftp_form'] = $result['ftp_form'];
+                }
+            }
+        }
+        return $errors;
+
     }
 
     /**
@@ -65,7 +90,7 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
     function schedule() {
         if ($this->_config->get_boolean('cdn.enabled') && !w3_is_cdn_mirror($this->_config->get_string('cdn.engine'))) {
             if (!wp_next_scheduled('w3_cdn_cron_queue_process')) {
-                wp_schedule_event(time(), 'w3_cdn_cron_queue_process', 'w3_cdn_cron_queue_process');
+                wp_schedule_event(current_time('timestamp'), 'w3_cdn_cron_queue_process', 'w3_cdn_cron_queue_process');
             }
         } else {
             $this->unschedule();
@@ -78,7 +103,7 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
     function schedule_upload() {
         if ($this->_config->get_boolean('cdn.enabled') && $this->_config->get_boolean('cdn.autoupload.enabled') && !w3_is_cdn_mirror($this->_config->get_string('cdn.engine'))) {
             if (!wp_next_scheduled('w3_cdn_cron_upload')) {
-                wp_schedule_event(time(), 'w3_cdn_cron_upload', 'w3_cdn_cron_upload');
+                wp_schedule_event(current_time('timestamp'), 'w3_cdn_cron_upload', 'w3_cdn_cron_upload');
             }
         } else {
             $this->unschedule_upload();
@@ -120,8 +145,8 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
 
         $sql = sprintf("CREATE TABLE IF NOT EXISTS `%s%s` (
             `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-            `local_path` varchar(150) NOT NULL DEFAULT '',
-            `remote_path` varchar(150) NOT NULL DEFAULT '',
+            `local_path` varchar(500) NOT NULL DEFAULT '',
+            `remote_path` varchar(500) NOT NULL DEFAULT '',
             `command` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT '1 - Upload, 2 - Delete, 3 - Purge',
             `last_error` varchar(150) NOT NULL DEFAULT '',
             `date` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -239,11 +264,13 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
      * @param integer $limit
      */
     function queue_process($limit) {
+        $items = 0;
+        
         $commands = $this->queue_get($limit);
         $force_rewrite = $this->_config->get_boolean('cdn.force.rewrite');
 
         if (count($commands)) {
-            $cdn = & $this->_get_common()->get_cdn();
+            $cdn = $this->_get_common()->get_cdn();
 
             foreach ($commands as $command => $queue) {
                 $files = array();
@@ -251,13 +278,29 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
                 $map = array();
 
                 foreach ($queue as $result) {
-                    $files[$result->local_path] = $result->remote_path;
+                    $files[] = $this->_get_common()->build_file_descriptor($result->local_path, $result->remote_path);
                     $map[$result->local_path] = $result->id;
+                    $items++;
                 }
 
                 switch ($command) {
                     case W3TC_CDN_COMMAND_UPLOAD:
+                        $dispatcher = w3_instance('W3_Dispatcher');
+                        foreach ($files as $file) {
+                            $local_file_name = $file['local_path'];
+                            $remote_file_name = $file['remote_path'];
+                            if (!file_exists($local_file_name)) {
+                                $dispatcher->create_file_for_cdn($local_file_name);
+                            }
+                        }
+
                         $cdn->upload($files, $results, $force_rewrite);
+                        
+                        foreach ($results as $result) {
+                            if ($result['result'] == W3TC_CDN_RESULT_OK) {
+                                $dispatcher->on_cdn_file_upload($result['local_path']);
+                            }
+                        }
                         break;
 
                     case W3TC_CDN_COMMAND_DELETE:
@@ -278,6 +321,8 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
                 }
             }
         }
+        
+        return $items;
     }
 
     /**
@@ -309,7 +354,7 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
             LEFT JOIN
             	%spostmeta AS pm2 ON p.ID = pm2.post_ID AND pm2.meta_key = "_wp_attachment_metadata"
             WHERE
-                p.post_type = "attachment"
+                p.post_type = "attachment"  AND (pm.meta_value IS NOT NULL OR pm2.meta_value IS NOT NULL)
             GROUP BY
             	p.ID', $wpdb->prefix, $wpdb->prefix, $wpdb->prefix);
 
@@ -337,7 +382,7 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
                         $local_file = $upload_info['basedir'] . '/' . $file;
                         $remote_file = ltrim($upload_info['baseurlpath'] . $file, '/');
 
-                        $post_files[$local_file] = $remote_file;
+                        $post_files[] = $this->_get_common()->build_file_descriptor($local_file, $remote_file);
                     }
 
                     if ($post->metadata) {
@@ -534,13 +579,13 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
                                          * Check if download or copy was successful
                                          */
                                         if ($download_result) {
-                                            require_once W3TC_INC_DIR . '/functions/mime.php';
+                                            w3_require_once(W3TC_INC_DIR . '/functions/mime.php');
 
                                             $title = $dst_basename;
                                             $guid = ltrim($upload_info['baseurlpath'] . $title, ',');
                                             $mime_type = w3_get_mime_type($dst);
 
-                                            @$GLOBALS['wp_rewrite'] = & new WP_Rewrite();
+                                            $GLOBALS['wp_rewrite'] = new WP_Rewrite();
 
                                             /**
                                              * Insert attachment
@@ -714,14 +759,13 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
     function get_attachments_count() {
         global $wpdb;
 
-        $sql = sprintf('SELECT
-        		COUNT(DISTINCT p.ID)
-            FROM
-                %sposts AS p
-            JOIN
-                %spostmeta AS pm ON p.ID = pm.post_ID AND (pm.meta_key = "_wp_attached_file" OR pm.meta_key = "_wp_attachment_metadata")
-            WHERE
-                p.post_type = "attachment"', $wpdb->prefix, $wpdb->prefix);
+        $sql = sprintf('SELECT COUNT(DISTINCT p.ID)
+FROM %sposts AS p
+LEFT JOIN %spostmeta AS pm ON p.ID = pm.post_ID
+AND pm.meta_key =  "_wp_attached_file"
+LEFT JOIN %spostmeta AS pm2 ON p.ID = pm2.post_ID
+AND pm2.meta_key =  "_wp_attachment_metadata"
+WHERE p.post_type = "attachment" AND (pm.meta_value IS NOT NULL OR pm2.meta_value IS NOT NULL)', $wpdb->prefix, $wpdb->prefix, $wpdb->prefix);
 
         return $wpdb->get_var($sql);
     }
@@ -791,5 +835,263 @@ class W3_Plugin_CdnAdmin extends W3_Plugin {
     function update_cnames(&$error) {
         $cdn = $this->_get_common()->get_cdn();
         $cdn->update_cnames($error);
+    }
+
+    /**
+     * Returns rules
+     *
+     * @param bool $cdnftp
+     * @return string
+     */
+    function generate_rules($cdnftp = false) {
+        switch (true) {
+            case w3_is_apache():
+            case w3_is_litespeed():
+                return $this->generate_rules_apache($cdnftp);
+
+            case w3_is_nginx():
+                return $this->generate_rules_nginx($cdnftp);
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns apache rules
+     *
+     * @param bool $cdnftp
+     * @return string
+     */
+    function generate_rules_apache($cdnftp = false) {
+        $rules = '';
+        $rules .= W3TC_MARKER_BEGIN_CDN . "\n";
+        $w3_dispatcher = w3_instance('W3_Dispatcher');
+
+        if ($w3_dispatcher->should_cdn_generate_canonical($cdnftp)) {
+            $mime_types = $this->_get_other_types();
+            $extensions = array_keys($mime_types);
+            $extensions_lowercase = array_map('strtolower', $extensions);
+            $extensions_uppercase = array_map('strtoupper', $extensions);
+            $host = ($cdnftp) ? w3_get_home_domain() : '%{HTTP_HOST}';
+            $rules .= "<FilesMatch \"\\.(" . implode('|', array_merge($extensions_lowercase, $extensions_uppercase)) . ")$\">\n";
+            $rules .= "   <IfModule mod_rewrite.c>\n";
+            $rules .= "      RewriteEngine On\n";
+            $rules .= "      RewriteCond %{HTTPS} !=on\n";
+            $rules .= "      RewriteRule .* - [E=CANONICAL:http://$host%{REQUEST_URI},NE]\n";
+            $rules .= "      RewriteCond %{HTTPS} =on\n";
+            $rules .= "      RewriteRule .* - [E=CANONICAL:https://$host%{REQUEST_URI},NE]\n";
+            $rules .= "   </IfModule>\n";
+            $rules .= "   <IfModule mod_headers.c>\n";
+            $rules .= '      Header set Link "<%{CANONICAL}e>; rel=\"canonical\""' . "\n";
+            $rules .= "   </IfModule>\n";
+            $rules .= "</FilesMatch>\n";
+        }
+
+        if (!$cdnftp)
+            $rules .= "<FilesMatch \"\.(ttf|otf|eot|woff)$\">\n";
+        $rules .= "<IfModule mod_headers.c>\n";
+        $rules .= "    Header set Access-Control-Allow-Origin \"*\"\n";
+        $rules .= "</IfModule>\n";
+        if (!$cdnftp)
+            $rules .= "</FilesMatch>\n";
+        $rules .= W3TC_MARKER_END_CDN . "\n";
+
+        return $rules;
+    }
+
+    /**
+     * Returns nginx rules
+     *
+     * @param bool $cdnftp
+     * @return string
+     */
+    function generate_rules_nginx($cdnftp = false) {
+        $rules = '';
+        $rules .= W3TC_MARKER_BEGIN_CDN . "\n";
+        $w3_dispatcher = w3_instance('W3_Dispatcher');
+        if ($w3_dispatcher->should_cdn_generate_canonical($cdnftp)) {
+            $mime_types = $this->_get_other_types();
+            $extensions = array_keys($mime_types);
+            $rules .= "location ~ \.(" . implode('|', $extensions) . ")$ {\n";
+            $rules .= $this->generate_canonical_nginx($cdnftp);
+            $rules .= "}\n";
+        }
+
+        if (!$cdnftp)
+            $rules .= "location ~ \\.(ttf|otf|eot|woff)$ {\n";
+        $rules .= "   add_header Access-Control-Allow-Origin \"*\";\n";
+        if (!$cdnftp)
+            $rules .= "}\n";
+        $rules .= W3TC_MARKER_END_CDN . "\n";
+
+        return $rules;
+    }
+
+    /**
+     * Returns nginx canonical rule
+     * @param $cdnftp
+     * @return string
+     */
+    public function generate_canonical_nginx($cdnftp) {
+        $home = ($cdnftp) ? w3_get_home_domain() : '$host';
+        return '   add_header Link "<$scheme://' . $home . '$uri>; rel=\"canonical\"";' . "\n";
+    }
+
+    /**
+     * Writes rules
+     *
+     * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
+     * @throws FileOperationException
+     */
+    function write_rules() {
+        $path = w3_get_browsercache_rules_cache_path();
+
+        if (file_exists($path)) {
+            $data = @file_get_contents($path);
+
+            if ($data === false) {
+                return false;
+            }
+        } else {
+            $data = '';
+        }
+
+        $replace_start = strpos($data, W3TC_MARKER_BEGIN_CDN);
+        $replace_end = strpos($data, W3TC_MARKER_END_CDN);
+
+        if ($replace_start !== false && $replace_end !== false && $replace_start < $replace_end) {
+            $replace_length = $replace_end - $replace_start + strlen(W3TC_MARKER_END_CDN) + 1;
+        } else {
+            $replace_start = false;
+            $replace_length = 0;
+
+            $search = array(
+                W3TC_MARKER_BEGIN_MINIFY_CORE => 0,
+                W3TC_MARKER_BEGIN_PGCACHE_CORE => 0,
+                W3TC_MARKER_BEGIN_BROWSERCACHE_NO404WP => 0,
+                W3TC_MARKER_BEGIN_BROWSERCACHE_CACHE => 0,
+                W3TC_MARKER_BEGIN_WORDPRESS => 0,
+                W3TC_MARKER_END_PGCACHE_CACHE => strlen(W3TC_MARKER_END_PGCACHE_CACHE) + 1,
+                W3TC_MARKER_END_MINIFY_CACHE => strlen(W3TC_MARKER_END_MINIFY_CACHE) + 1
+            );
+
+            foreach ($search as $string => $length) {
+                $replace_start = strpos($data, $string);
+
+                if ($replace_start !== false) {
+                    $replace_start += $length;
+                    break;
+                }
+            }
+        }
+
+        $rules = $this->generate_rules();
+
+        if ($replace_start !== false) {
+            $data = w3_trim_rules(substr_replace($data, $rules, $replace_start, $replace_length));
+        } else {
+            $data = w3_trim_rules($data . $rules);
+        }
+
+        w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
+        w3_write_to_file($path, $data);
+    }
+
+    /**
+     * Check rules
+     *
+     * @return boolean
+     */
+    function check_rules() {
+        $path = w3_get_browsercache_rules_cache_path();
+        $search = $this->generate_rules();
+
+        return (($data = @file_get_contents($path)) && strstr(w3_clean_rules($data), w3_clean_rules($search)) !== false);
+    }
+
+    /**
+     * Removes cache rules
+     *
+     * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
+     * @throws FileOperationException
+     */
+    function remove_rules() {
+        $path = w3_get_browsercache_rules_cache_path();
+
+        if (file_exists($path)) {
+            if (($data = @file_get_contents($path)) !== false) {
+                $data = $this->erase_rules($data);
+
+                w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
+                w3_write_to_file($path, $data);
+            }
+        }
+    }
+
+    /**
+     * Erases cache rules
+     *
+     * @param string $data
+     * @return string
+     */
+    function erase_rules($data) {
+        $data = w3_erase_rules($data, W3TC_MARKER_BEGIN_CDN, W3TC_MARKER_END_CDN);
+
+        return $data;
+    }
+
+    /**
+     * Returns other mime types
+     *
+     * @return array
+     */
+    function _get_other_types() {
+        $mime_types = include W3TC_INC_DIR . '/mime/other.php';
+
+        return $mime_types;
+    }
+
+    /**
+     * Returns required rules for module
+     * @return array
+     */
+    function get_required_rules() {
+        $rewrite_rules = array();
+        if ($this->_config->get_boolean('cdn.enabled') && $this->_config->get_string('cdn.engine') == 'ftp') {
+            $domain = $this->_get_common()->get_cdn()->get_domain();
+            $cdn_rules_path = sprintf('ftp://%s/%s', $domain, w3_get_cdn_rules_path());
+            $rewrite_rules[] = array('filename' => $cdn_rules_path, 'content' => $this->generate_rules());
+        }
+
+        if ($this->_config->get_boolean('cdn.enabled') || $this->_config->get_boolean('cloudflare.enabled')) {
+            $browsercache_rules_cache_path = w3_get_browsercache_rules_cache_path();
+            $rewrite_rules[] = array('filename' => $browsercache_rules_cache_path, 'content' => $this->generate_rules());
+        }
+        return $rewrite_rules;
+    }
+
+    /**
+     * @return array
+     */
+    function remove_rules_with_message() {
+        $ftp_form = null;
+        $errors = array();
+        $errors_short_form = array();
+
+        if ($this->check_rules()) {
+            try {
+                $this->remove_rules();
+            } catch(Exception $e) {
+                $errors[] = sprintf('CDN/CloudFlare added rules that need to be removed. To remove them manually, edit the configuration file (<strong>%s</strong>) and remove all lines between and including <strong>%s</strong> and <strong>%s</strong> markers inclusive.'
+                    , w3_get_browsercache_rules_cache_path(),
+                    W3TC_MARKER_BEGIN_CDN, W3TC_MARKER_BEGIN_CDN);
+                $errors_short_form[] = sprintf('Edit file (<strong>%s</strong>) and remove all lines between and including <strong>%s</strong> and <strong>%s</strong> markers inclusive.'
+                    , w3_get_browsercache_rules_cache_path(),
+                    W3TC_MARKER_BEGIN_CDN, W3TC_MARKER_BEGIN_CDN);
+                if ($e instanceof FilesystemCredentialException)
+                    $ftp_form = $e->ftp_form();
+            }
+        }
+        return array('errors' => $errors, 'ftp_form' => $ftp_form, 'errors_short_form' => $errors_short_form);
     }
 }

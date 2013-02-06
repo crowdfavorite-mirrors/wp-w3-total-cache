@@ -7,13 +7,20 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_INC_DIR . '/functions/file.php';
-require_once W3TC_LIB_W3_DIR . '/Plugin.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+w3_require_once(W3TC_LIB_W3_DIR . '/Plugin.php');
 
 /**
  * Class W3_Plugin_CdnCommon
  */
 class W3_Plugin_CdnCommon extends W3_Plugin {
+    /**
+     * If background uploading already scheduled
+     * 
+     * @var boolean
+     */
+    var $_upload_scheduled = false;
+    
     /**
      * Adds file to queue
      *
@@ -41,13 +48,13 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
     }
 
     /**
-     * Returns array of local_file => remote_file for specified file
+     * Returns array of array('local_path' => '', 'remote_path' => '') for specified file
      *
      * @param string $file
      * @return array
      */
     function get_files_for_upload($file) {
-        require_once W3TC_INC_DIR . '/functions/http.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/http.php');
 
         $files = array();
         $upload_info = w3_upload_info();
@@ -58,7 +65,7 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
             $local_file = $upload_info['basedir'] . '/' . $file;
             $remote_file = ltrim($upload_info['baseurlpath'] . $file, '/');
 
-            $files[$local_file] = $remote_file;
+            $files[] = $this->build_file_descriptor($local_file, $remote_file);
         }
 
         return $files;
@@ -154,7 +161,7 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
      * @return boolean
      */
     function upload($files, $queue_failed, &$results) {
-        $cdn = & $this->get_cdn();
+        $cdn = $this->get_cdn();
         $force_rewrite = $this->_config->get_boolean('cdn.force.rewrite');
 
         @set_time_limit($this->_config->get_integer('timelimit.cdn_upload'));
@@ -181,7 +188,7 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
      * @return boolean
      */
     function delete($files, $queue_failed, &$results) {
-        $cdn = & $this->get_cdn();
+        $cdn = $this->get_cdn();
 
         @set_time_limit($this->_config->get_integer('timelimit.cdn_delete'));
 
@@ -201,7 +208,7 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
     /**
      * Purges files from CDN
      *
-     * @param array $files
+     * @param array $files consisting of array('local_path'=>'', 'remote_path'=>'')
      * @param boolean $queue_failed
      * @param array $results
      * @return boolean
@@ -210,18 +217,19 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
         /**
          * Purge varnish servers before mirror purging
          */
-        if (w3_is_cdn_mirror($this->_config->get_string('cdn_engine')) && $this->_config->get_boolean('varnish.enabled')) {
-            $varnish = & w3_instance('W3_Varnish');
+        if (w3_is_cdn_mirror($this->_config->get_string('cdn.engine')) && $this->_config->get_boolean('varnish.enabled')) {
+            $varnish = w3_instance('W3_VarnishFlush');
 
-            foreach ($files as $remote_path) {
-                $varnish->purge($remote_path);
+            foreach ($files as $file) {
+                $remote_path = $file['remote_path'];
+                $varnish->flush_url(network_site_url($remote_path));
             }
         }
 
         /**
          * Purge CDN
          */
-        $cdn = & $this->get_cdn();
+        $cdn = $this->get_cdn();
 
         @set_time_limit($this->_config->get_integer('timelimit.cdn_purge'));
 
@@ -239,13 +247,74 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
     }
 
     /**
+     * Purge CDN completely
+     * @param $results
+     * @return mixed
+     */
+    function purge_all(&$results) {
+        /**
+         * Purge CDN
+         */
+        $cdn = $this->get_cdn();
+
+        @set_time_limit($this->_config->get_integer('timelimit.cdn_purge'));
+
+        $return = $cdn->purge_all($results);
+        return $return;
+    }
+    
+    /**
+     * Queues file upload.
+     * Links wp_cron call to do that by the end of request processing
+     *
+     * @param string $url
+     * @return void
+     */
+    function queue_upload_url($url) {
+
+        /**
+         * Get filesystem file name by url
+         */
+        $home_url_ssl =  w3_get_home_url_ssl();
+        if (substr($url, 0, strlen($home_url_ssl)) == $home_url_ssl) {
+            $file_name = w3_get_document_root() . substr($url, strlen($home_url_ssl));
+        } else {
+            // unknown url for uploading
+            return;
+        }
+
+        $document_root = w3_get_document_root() . '/';
+        
+        /*
+         * Define remote filename
+         */
+        if (!substr($file_name, 0, strlen($document_root)) == $document_root) {
+            // unexpected file name
+            return;
+        }
+
+        $remote_file_name = $this->uri_to_cdn_uri($this->docroot_filename_to_uri((substr($file_name, strlen($document_root)))));
+        
+        /*
+         * Queue uploading
+         */
+        $this->queue_add($file_name, $remote_file_name, W3TC_CDN_COMMAND_UPLOAD, 'Pending');
+        
+        if (!$this->_upload_scheduled) {
+            wp_schedule_single_event(time() - 100, 'w3_cdn_cron_queue_process');
+            add_action('shutdown', 'wp_cron');
+            $this->_upload_scheduled = true;
+        }
+    }
+
+    /**
      * Normalizes attachment file
      *
      * @param string $file
      * @return string
      */
     function normalize_attachment_file($file) {
-        require_once W3TC_INC_DIR . '/functions/http.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/http.php');
 
         $upload_info = w3_upload_info();
         if ($upload_info) {
@@ -265,7 +334,7 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
      *
      * @return W3_Cdn_Base
      */
-    function &get_cdn() {
+    function get_cdn() {
         static $cdn = array();
 
         if (!isset($cdn[0])) {
@@ -276,7 +345,6 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
                 case 'ftp':
                     $engine_config = array(
                         'host' => $this->_config->get_string('cdn.ftp.host'),
-                        'port' => $this->_config->get_integer('cdn.ftp.port'),
                         'user' => $this->_config->get_string('cdn.ftp.user'),
                         'pass' => $this->_config->get_string('cdn.ftp.pass'),
                         'path' => $this->_config->get_string('cdn.ftp.path'),
@@ -354,8 +422,9 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
 
                 case 'netdna':
                     $engine_config = array(
-                        'apiid' => $this->_config->get_string('cdn.netdna.apiid'),
-                        'apikey' => $this->_config->get_string('cdn.netdna.apikey'),
+                        'alias' => $this->_config->get_string('cdn.netdna.alias'),
+                        'consumerkey' => $this->_config->get_string('cdn.netdna.consumerkey'),
+                        'consumersecret' => $this->_config->get_string('cdn.netdna.consumersecret'),
                         'domain' => $this->_config->get_array('cdn.netdna.domain'),
                         'ssl' => $this->_config->get_string('cdn.netdna.ssl'),
                         'compression' => false
@@ -382,24 +451,157 @@ class W3_Plugin_CdnCommon extends W3_Plugin {
                         'compression' => false
                     );
                     break;
+
+                case 'att':
+                    $engine_config = array(
+                        'account' => $this->_config->get_string('cdn.att.account'),
+                        'token' => $this->_config->get_string('cdn.att.token'),
+                        'domain' => $this->_config->get_array('cdn.att.domain'),
+                        'ssl' => $this->_config->get_string('cdn.att.ssl'),
+                        'compression' => false
+                    );
+                    break;
+                
+                case 'akamai':
+                    $engine_config = array(
+                        'username' => $this->_config->get_string('cdn.akamai.username'),
+                        'password' => $this->_config->get_string('cdn.akamai.password'),
+                        'zone' => $this->_config->get_string('cdn.akamai.zone'),
+                        'domain' => $this->_config->get_array('cdn.akamai.domain'),
+                        'ssl' => $this->_config->get_string('cdn.akamai.ssl'),
+                        'email_notification' => $this->_config->get_array('cdn.akamai.email_notification'),
+                        'compression' => false
+                    );
+                    break;
+                
             }
 
             $engine_config = array_merge($engine_config, array(
                 'debug' => $this->_config->get_boolean('cdn.debug')
             ));
 
-            require_once W3TC_LIB_W3_DIR . '/Cdn.php';
-            @$cdn[0] = & W3_Cdn::instance($engine, $engine_config);
+            w3_require_once(W3TC_LIB_W3_DIR . '/Cdn.php');
+            $cdn[0] = W3_Cdn::instance($engine, $engine_config);
 
             /**
              * Set cache config for CDN
              */
             if ($this->_config->get_boolean('browsercache.enabled')) {
-                $w3_plugin_browsercache = & w3_instance('W3_Plugin_BrowserCache');
+                $w3_plugin_browsercache = w3_instance('W3_Plugin_BrowserCache');
                 $cdn[0]->cache_config = $w3_plugin_browsercache->get_cache_config();
             }
         }
 
         return $cdn[0];
     }
+
+    /**
+     * Convert relative file which is relative to ABSPATH (wp folder on disc) to path uri
+     *
+     * @param $file
+     * @return string
+     */
+    function docroot_filename_to_uri($file) {
+        // Translate multisite subsite uploads paths
+        $file = str_replace(basename(WP_CONTENT_DIR) . '/blogs.dir/' . w3_get_blog_id() . '/', '', $file);
+        if (strpos($file, basename(WP_CONTENT_DIR)) === 0 && !w3_is_multisite())
+            $remote_path = '';
+        else
+            $remote_path = ltrim(w3_get_site_path(), "/");
+
+        if ($remote_path == substr($file, 0, strlen($remote_path)))
+            return $file;
+
+        return $remote_path . $file;
+
+    }
+
+    /**
+     * Convert a relative path (relative to ABSPATH (wp folder on disc) into a absolute path
+     *
+     * @param $file
+     * @return string
+     */
+    function docroot_filename_to_absolute_path($file) {
+        if(is_file($file))
+            return $file;
+
+        return  rtrim(w3_get_document_root(), "/") . '/' . ltrim($file, "/");
+    }
+
+    /**
+     * Convert local uri path to CDN type specific path
+     * @param $local_uri_path
+     * @return string
+     */
+    function uri_to_cdn_uri($local_uri_path) {
+        if (w3_is_network() && defined('DOMAIN_MAPPING') && DOMAIN_MAPPING)
+            $local_uri_path = str_replace(w3_get_site_url(), '', $local_uri_path);
+        $engine = $this->_config->get_string('cdn.engine');
+        if (w3_is_cdn_mirror($engine)) {
+            if (w3_is_network() && strpos($local_uri_path, 'files') === 0) {
+                $upload_dir = wp_upload_dir();
+                return trim($this->abspath_to_relative_path(dirname($upload_dir['basedir'])) . '/' . $local_uri_path, '/');
+            }
+        }
+
+        $remote_path = $local_uri_path;
+
+        return trim($remote_path, "/");
+    }
+
+    /**
+     * Returns the sitepath for multisite subfolder or subdomain path for multisite subdomain
+     * @return string
+     */
+    private function _get_multisite_url_identifier() {
+        if (defined('DOMAIN_MAPPING') && DOMAIN_MAPPING) {
+            $parsedUrl = parse_url(w3_get_site_url());
+            return $parsedUrl['host'];
+        } elseif (w3_is_subdomain_install()) {
+            $parsedUrl = parse_url(w3_get_domain_url());
+            $urlparts = explode('.', $parsedUrl['host']);
+
+            if (sizeof($urlparts) > 2) {
+                $subdomain = array_shift($urlparts);
+                return trim($subdomain, '/');
+            }
+        }
+        return trim(w3_get_site_path(), '/');
+    }
+
+    /**
+     * Taks an absolute path and converts to a relative path to root
+     * @param $path
+     * @return mixed
+     */
+    function abspath_to_relative_path($path) {
+        return str_replace(w3_get_document_root(), '', $path);
+    }
+
+    /**
+     * Takes a root relative path and converts to a full uri
+     * @param $path
+     * @return string
+     */
+    function relative_path_to_url($path) {
+        $cdnuri = $this->docroot_filename_to_uri(ltrim($path, "/"));
+        return rtrim(w3_get_domain_url(), "/") . '/' . $cdnuri;
+    }
+
+    /**
+     * Constructs a CDN file descriptor
+     * @param $local_path
+     * @param $remote_path
+     * @return array
+     */
+    function build_file_descriptor($local_path, $remote_path) {
+        $file = array('local_path' => $local_path,
+                      'remote_path' => $remote_path,
+                      'original_url' => $this->relative_path_to_url($local_path));
+
+        $file = apply_filters('w3tc_build_cdn_file_array', $file);
+        return $file;
+    }
 }
+

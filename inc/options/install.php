@@ -7,7 +7,8 @@
         	Set the permissions of wp-content/ back to 755, e.g.:
          	<pre class="console"># chmod 755 /var/www/vhosts/domain.com/httpdocs/wp-content/</pre>
         </li>
-        <li>On the "<a href="admin.php?page=w3tc_general">General</a>" tab and select your caching methods for page, database and minify. In most cases, "disk enhanced" mode for page cache, "disk" mode for minify and "disk" mode for database caching are "good" settings.</li>
+        <li>On the "<a href="admin.php?page=w3tc_general">General</a>" tab and select your caching methods for page, database and minify. In most cases, "disk enhanced" mode for page cache is a good starting point.</li>
+        <li>1. The "Compatibility Mode" option found in the advanced section of the "<a href="admin.php?page=w3tc_pgcache">Page Cache Settings</a>" tab will enable functionality that optimizes the interoperablity of caching with WordPress, is disabled by default, but highly recommended. Years of testing in hundreds of thousands of installations have helped us learn how to make caching behave well with WordPress. The tradeoff is that disk enhanced page cache performance under load tests will be decreased by ~20% at scale.</li>
         <li><em>Recommended:</em> On the "<a href="admin.php?page=w3tc_minify">Minify</a>" tab all of the recommended settings are preset. Use the help button to simplify discovery of your <acronym title="Cascading Style Sheet">CSS</acronym> and <acronym title="JavaScript">JS</acronym> files and groups. Pay close attention to the method and location of your <acronym title="JavaScript">JS</acronym> group embeddings. See the plugin's <a href="admin.php?page=w3tc_faq">FAQ</a> for more information on usage.</li>
         <li><em>Recommended:</em> On the "<a href="admin.php?page=w3tc_browsercache">Browser Cache</a>" tab, <acronym title="Hypertext Transfer Protocol">HTTP</acronym> compression is enabled by default. Make sure to enable other options to suit your goals.</li>
         <li><em>Recommended:</em> If you already have a content delivery network (<acronym title="Content Delivery Network">CDN</acronym>) provider, proceed to the "<a href="admin.php?page=w3tc_cdn">Content Delivery Network</a>" tab and populate the fields and set your preferences. If you do not use the Media Library, you will need to import your images etc into the default locations. Use the Media Library Import Tool on the "Content Delivery Network" tab to perform this task. If you do not have a <acronym title="Content Delivery Network">CDN</acronym> provider, you can still improve your site's performance using the "Self-hosted" method. On your own server, create a subdomain and matching <acronym title="Domain Name System">DNS</acronym> Zone record; e.g. static.domain.com and configure <acronym title="File Transfer Protocol">FTP</acronym> options on the "Content Delivery Network" tab accordingly. Be sure to <acronym title="File Transfer Protocol">FTP</acronym> upload the appropriate files, using the available upload buttons.</li>
@@ -21,17 +22,14 @@
     </p>
 
 	<hr />
-
-	<?php if (count($rewrite_rules)): ?>
-	<h3>Rewrite rules</h3>
-
-	<?php foreach ($rewrite_rules as $path => $rules): ?>
-	<p><strong><?php echo htmlspecialchars($path); ?>:</strong></p>
-	<pre class="code"><?php echo htmlspecialchars($rules); ?></pre>
-	<?php endforeach; ?>
-
-	<hr />
-	<?php endif; ?>
+    <?php if (count($rewrite_rules_descriptors)): ?>
+    <h3>Rewrite rules</h3>
+    <?php foreach ($rewrite_rules_descriptors as $descriptor): ?>
+     <p><strong><?php echo htmlspecialchars($descriptor['filename']); ?>:</strong></p>
+    <pre class="code"><?php echo htmlspecialchars($descriptor['content']); ?></pre>
+    <?php endforeach; ?>
+    <hr />
+    <?php endif; ?>
 
     <h3>Software Installation for Dedicated / Virtual Dedicated / Multiple Servers (Optional)</h3>
 
@@ -250,7 +248,21 @@
 			<pre class="console"># php -r 'phpinfo();' | grep 'eaccelerator'</pre>
 		</li>
     </ol>
+    <hr />
 
+    <p id="newrelic"><strong>New Relic Installation:</strong><br /><em>Time required: Mileage varies.</em></p>
+    <p>
+        Find requirements and installation instructions on New Relic website: <a href="https://newrelic.com/docs/php/new-relic-for-php" target="_blank">Installing New Relic for PHP</a>.
+        To see if this server supports New Relic click "compability check" on the <a href="<?php echo admin_url('admin.php?page=w3tc_dashboard')?>">Dashboard tab</a>. Other key resources can be found below:
+    </p>
+<ul>
+  <li><a href="https://newrelic.com/docs/php/quick-installation-instructions-advanced-users" target="_blank">Quick Installation Instructions (Advanced Users)</a></li>
+  <li><a href="https://newrelic.com/docs/php/the-newrelic-install-script" target="_blank">The newrelic-install Script</a></li>
+  <li><a href="https://newrelic.com/docs/php/php-agent-installation-redhat-and-centos" target="_blank">Installing with yum or rpm (RedHat, CentOS)</a></li>
+  <li><a href="https://newrelic.com/docs/php/php-agent-installation-ubuntu-and-debian" target="_blank">Installing with dpkg or apt (Ubuntu, Debian)</a></li>
+  <li><a href="https://newrelic.com/docs/php/php-agent-installation-tar-files" target="_blank">Installing from tar Files (other Linux variants, OpenSolaris, FreeBSD)</a></li>
+  <li><a href="https://newrelic.com/docs/php/newrelic-daemon-startup-modes" target="_blank">New Relic Daemon Startup Modes</a></li>
+</ul>
     <hr />
 
     <div class="metabox-holder">

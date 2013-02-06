@@ -1,7 +1,7 @@
 <?php if (!defined('W3TC')) die(); ?>
 <form action="<?php echo W3TC_PAYPAL_URL; ?>" method="get">
     <div class="metabox-holder">
-        <?php echo $this->postbox_header('Request payment'); ?>
+        <?php echo $this->postbox_header('Make Payment'); ?>
 
         <p><?php echo htmlspecialchars($this->_request_types[$request_type]); ?></p>
 

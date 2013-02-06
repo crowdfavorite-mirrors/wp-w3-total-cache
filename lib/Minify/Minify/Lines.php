@@ -58,7 +58,7 @@ class Minify_Lines {
         $content = implode("\n", $newLines) . "\n";
 
         // check for desired URI rewriting
-        require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php';
+        w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php');
 
         $content = Minify_CSS_UriRewriter::rewrite($content, $options);
 

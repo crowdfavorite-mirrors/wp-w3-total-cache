@@ -20,16 +20,9 @@ class W3_PageSpeed {
      * PHP5-style constructor
      */
     function __construct() {
-        $config = & w3_instance('W3_Config');
+        $config = w3_instance('W3_Config');
 
         $this->key = $config->get_string('widget.pagespeed.key');
-    }
-
-    /**
-     * PHP4-style constructor
-     */
-    function W3_PageSpeed() {
-        $this->__construct();
     }
 
     /**
@@ -70,8 +63,8 @@ class W3_PageSpeed {
      * @return string
      */
     function _request($url) {
-        require_once W3TC_INC_DIR . '/functions/http.php';
-        require_once W3TC_INC_DIR . '/functions/url.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/http.php');
+        w3_require_once(W3TC_INC_DIR . '/functions/url.php');
 
         $request_url = w3_url_format(W3TC_PAGESPEED_API_URL, array(
             'url' => $url,
@@ -265,7 +258,7 @@ class W3_PageSpeed {
      * @return string
      */
     function _get_cache_file($url) {
-        return W3TC_TMP_DIR . '/pagespeed_' . md5($url);
+        return W3TC_CACHE_TMP_DIR . '/pagespeed_' . md5($url);
     }
 
     var $_format_string_args = array();

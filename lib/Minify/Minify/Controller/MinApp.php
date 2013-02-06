@@ -7,7 +7,7 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_LIB_MINIFY_DIR . '/Minify/Controller/Base.php';
+w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Controller/Base.php');
 
 /**
  * Controller class for requests to /min/index.php
@@ -70,25 +70,50 @@ class Minify_Controller_MinApp extends Minify_Controller_Base {
                 }
             }
         } elseif (! $cOptions['groupsOnly'] && isset($_GET['f'])) {
-            // try user files
-            // The following restrictions are to limit the URLs that minify will
-            // respond to. Ideally there should be only one way to reference a file.
-            if (// verify at least one file, files are single comma separated,
-                // and are all same extension
-                ! preg_match('/^[^,]+\\.(css|js)(?:,[^,]+\\.\\1)*$/', $_GET['f'])
-                // no "//"
-                || strpos($_GET['f'], '//') !== false
-                // no "\"
-                || strpos($_GET['f'], '\\') !== false
-                // no "./"
-                || preg_match('/(?:^|[^\\.])\\.\\//', $_GET['f'])
-            ) {
-                $this->log("GET['f'] param invalid: \"{$_GET['f']}\"");
-                return $options;
+            $config = w3_instance('W3_Config');
+            $external = $config->get_array('minify.cache.files');
+
+            $files = $_GET['f'];
+            $temp_files = array();
+            $external_files = 0;
+            foreach ($files as $file) {
+                if (!is_string($file)) {
+                    $url = $file->minifyOptions['prependRelativePath'];
+                    $verified  = false;
+                    foreach($external as $ext) {
+                        if(preg_match('#'.w3_get_url_regexp($ext).'#',$url) && !$verified){
+                            $verified = true;
+                        }
+                    }
+                    if (!$verified) {
+                        $this->log("GET['f'] param part invalid, not in accepted external files list: \"{$url}\"");
+                        return $options;
+                    }
+                    $external_files++;
+                } else {
+                    $temp_files[] = $file;
+                }
             }
-            $files = explode(',', $_GET['f']);
-            if (count($files) > $cOptions['maxFiles'] || $files != array_unique($files)) {
-                $this->log("Too many or duplicate files specified: \"" . implode(', ', $files) . "\"");
+
+            if ($temp_files) {
+                $imploded = implode(',', $temp_files);
+                if (// verify at least one file, files are single comma separated,
+                    // and are all same extension
+                    ! preg_match('/^[^,]+\\.(css|js)(?:,[^,]+\\.\\1)*$/', $imploded)
+                    // no "//"
+                    || strpos($imploded, '//') !== false
+                    // no "\"
+                    || strpos($imploded, '\\') !== false
+                    // no "./"
+                    || preg_match('/(?:^|[^\\.])\\.\\//', $imploded)
+                ) {
+                    $this->log("GET['f'] param part invalid: \"{$imploded}\"");
+                    return $options;
+                }
+            }
+
+            if (count($files) > $cOptions['maxFiles'] || (count($files)-$external_files) != count(array_unique($temp_files))) {
+                $this->log("Too many or duplicate files specified: \"" . implode(', ', $temp_files) . "\"");
                 return $options;
             }
             if (!empty($_GET['b'])) {
@@ -110,6 +135,11 @@ class Minify_Controller_MinApp extends Minify_Controller_Base {
                 $allowDirs[] = realpath(str_replace('//', $_SERVER['DOCUMENT_ROOT'] . '/', $allowDir));
             }
             foreach ($files as $file) {
+                if ($file instanceof Minify_Source) {
+                    $sources[] = $file;
+                    continue;
+                }
+
                 $path = $_SERVER['DOCUMENT_ROOT'] . $base . $file;
                 $file = realpath($path);
                 if (false === $file) {

@@ -1,5 +1,5 @@
 <?php
-
+//ObjectCache Version: 1.1
 /**
  * W3 Total Cache Object Cache
  */
@@ -27,7 +27,7 @@ if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
      * @return void
      */
     function wp_cache_init() {
-        $GLOBALS['wp_object_cache'] = & w3_instance('W3_ObjectCache');
+        $GLOBALS['wp_object_cache'] = w3_instance('W3_ObjectCacheBridge');
     }
 
     /**
@@ -40,7 +40,7 @@ if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
     }
 
     /**
-     * Get from cache
+     * Get cache
      *
      * @param string $id
      * @param string $group
@@ -145,7 +145,7 @@ if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
     }
 
     /**
-     * add non-persistent groups
+     * Add non-persistent groups
      *
      * @param array $groups
      * @return void
@@ -154,5 +154,46 @@ if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
         global $wp_object_cache;
 
         $wp_object_cache->add_nonpersistent_groups($groups);
+    }
+
+    /**
+     * Increment numeric cache item's value
+     *
+     * @param int|string $key The cache key to increment
+     * @param int $offset The amount by which to increment the item's value. Default is 1.
+     * @param string $group The group the key is in.
+     * @return bool|int False on failure, the item's new value on success.
+     */
+    function wp_cache_incr( $key, $offset = 1, $group = 'default' ) {
+        global $wp_object_cache;
+
+        return $wp_object_cache->incr( $key, $offset, $group );
+    }
+
+    /**
+     * Decrement numeric cache item's value
+     *
+     * @param int|string $key The cache key to increment
+     * @param int $offset The amount by which to decrement the item's value. Default is 1.
+     * @param string $group The group the key is in.
+     * @return bool|int False on failure, the item's new value on success.
+     */
+    function wp_cache_decr( $key, $offset = 1, $group = 'default' ) {
+        global $wp_object_cache;
+
+        return $wp_object_cache->decr( $key, $offset, $group );
+    }
+
+    /**
+     * Switch the internal blog id.
+     *
+     * This changes the blog id used to create keys in blog specific groups.
+     *
+     * @param int $blog_id Blog ID
+     */
+    function wp_cache_switch_to_blog( $blog_id ) {
+        global $wp_object_cache;
+
+        return $wp_object_cache->switch_to_blog( $blog_id );
     }
 }

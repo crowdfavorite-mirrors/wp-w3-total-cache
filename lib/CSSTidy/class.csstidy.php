@@ -873,7 +873,7 @@ function explode_selectors()
  * @return bool
  * @version 1.02
  */
-function escaped(&$string,$pos)
+static function escaped(&$string,$pos)
 {
 	return !(@($string{$pos-1} != '\\') || csstidy::escaped($string,$pos-1));
 }
@@ -931,7 +931,7 @@ function merge_css_blocks($media,$selector,$css_add)
  * @access public
  * @version 1.0
  */
-function is_important(&$value)
+static function is_important(&$value)
 {
 	return (!strcasecmp(substr(str_replace($GLOBALS['csstidy']['whitespace'],'',$value),-10,10),'!important'));
 }
@@ -943,7 +943,7 @@ function is_important(&$value)
  * @access public
  * @version 1.0
  */
-function gvw_important($value)
+static function gvw_important($value)
 {
 	if(csstidy::is_important($value))
 	{

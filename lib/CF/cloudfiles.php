@@ -1672,7 +1672,7 @@ class CF_Object
         if ($this->content_type)
             return;
 
-        require_once W3TC_INC_DIR . '/functions/mime.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/mime.php');
 
         $this->content_type = w3_get_mime_type($handle);
 

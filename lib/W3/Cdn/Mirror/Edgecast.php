@@ -7,14 +7,14 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-define('W3TC_CDN_EDGECAST_PURGE_URL', 'http://api.edgecast.com/v2/mcc/customers/%s/edge/purge');
+if (!defined('W3TC_CDN_EDGECAST_PURGE_URL')) define('W3TC_CDN_EDGECAST_PURGE_URL', 'http://api.edgecast.com/v2/mcc/customers/%s/edge/purge');
 define('W3TC_CDN_EDGECAST_MEDIATYPE_WINDOWS_MEDIA_STREAMING', 1);
 define('W3TC_CDN_EDGECAST_MEDIATYPE_FLASH_MEDIA_STREAMING', 2);
 define('W3TC_CDN_EDGECAST_MEDIATYPE_HTTP_LARGE_OBJECT', 3);
 define('W3TC_CDN_EDGECAST_MEDIATYPE_HTTP_SMALL_OBJECT', 8);
 define('W3TC_CDN_EDGECAST_MEDIATYPE_APPLICATION_DELIVERY_NETWORK', 14);
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Mirror.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Mirror.php');
 
 /**
  * Class W3_Cdn_Mirror_Edgecast
@@ -32,15 +32,6 @@ class W3_Cdn_Mirror_Edgecast extends W3_Cdn_Mirror {
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Mirror_Edgecast($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -63,7 +54,10 @@ class W3_Cdn_Mirror_Edgecast extends W3_Cdn_Mirror {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
+        foreach ($files as $file) {
+            $local_path = $file['local_path'];
+            $remote_path = $file['remote_path'];
+
             $url = $this->format_url($remote_path);
 
             $error = null;
@@ -76,6 +70,15 @@ class W3_Cdn_Mirror_Edgecast extends W3_Cdn_Mirror {
         }
 
         return !$this->_is_error($results);
+    }
+
+    /**
+     * Purges CDN completely
+     * @param $results
+     * @return bool
+     */
+    function purge_all(&$results) {
+        return $this->purge(array(array('local_path'=>'*', 'remote_path'=> '*')), $results);
     }
 
     /**
@@ -138,5 +141,21 @@ class W3_Cdn_Mirror_Edgecast extends W3_Cdn_Mirror {
         $error = 'Unknown error';
 
         return false;
+    }
+
+    /**
+     * If CDN supports path of type folder/*
+     * @return bool
+     */
+    function supports_folder_asterisk() {
+        return true;
+    }
+
+    /**
+     * If the CDN supports fullpage mirroring
+     * @return bool
+     */
+    function supports_full_page_mirroring() {
+        return true;
     }
 }

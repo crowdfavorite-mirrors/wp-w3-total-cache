@@ -7,10 +7,9 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-define('W3TC_CDN_MIRROR_NETDNA_TZ', 'America/Los_Angeles');
-define('W3TC_CDN_MIRROR_NETDNA_URL', 'http://api.netdna.com/xmlrpc/cache');
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Mirror.php');
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Mirror.php';
+define('W3TC_CDN_NETDNA_URL', 'netdna-cdn.com');
 
 /**
  * Class W3_Cdn_Mirror_Netdna
@@ -23,20 +22,12 @@ class W3_Cdn_Mirror_Netdna extends W3_Cdn_Mirror {
      */
     function __construct($config = array()) {
         $config = array_merge(array(
-            'apiid' => '',
-            'apikey' => ''
+            'alias' => '',
+            'consumerkey' => '',
+            'consumersecret' => ''
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Mirror_Netdna($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -47,81 +38,188 @@ class W3_Cdn_Mirror_Netdna extends W3_Cdn_Mirror {
      * @return boolean
      */
     function purge($files, &$results) {
-        if (empty($this->_config['apiid'])) {
-            $results = $this->_get_results($files, W3TC_CDN_RESULT_HALT, 'Empty API ID.');
+        if (empty($this->_config['alias'])) {
+            $results = $this->_get_results($files, W3TC_CDN_RESULT_HALT, 'Empty Alias.');
 
             return false;
         }
 
-        if (empty($this->_config['apikey'])) {
-            $results = $this->_get_results($files, W3TC_CDN_RESULT_HALT, 'Empty API key.');
+        if (empty($this->_config['consumerkey'])) {
+            $results = $this->_get_results($files, W3TC_CDN_RESULT_HALT, 'Empty Consumer Key.');
 
             return false;
         }
 
-        if ($this->_sha256('test') === false) {
-            $results = $this->_get_results($files, W3TC_CDN_RESULT_HALT, "hash() or mhash() function doesn't exists.");
+        if (empty($this->_config['consumersecret'])) {
+            $results = $this->_get_results($files, W3TC_CDN_RESULT_HALT, 'Empty Consumer Secret.');
 
             return false;
         }
 
-        if (!class_exists('IXR_Client')) {
-            require_once (ABSPATH . WPINC . '/class-IXR.php');
+        if (!class_exists('NetDNA')) {
+            w3_require_once(W3TC_LIB_NETDNA_DIR . '/NetDNA.php');
         }
 
-        if (function_exists('date_default_timezone_set')) {
-            $timezone = date_default_timezone_get();
-
-            date_default_timezone_set(W3TC_CDN_MIRROR_NETDNA_TZ);
-        }
-
-        $date = date('c');
-        $auth_string = sprintf('%s:%s:purge', $date, $this->_config['apikey']);
-        $auth_key = $this->_sha256($auth_string);
-
-        $client = new IXR_Client(W3TC_CDN_MIRROR_NETDNA_URL);
-        $client->timeout = 30;
+        $api = new NetDNA($this->_config['alias'], $this->_config['consumerkey'], $this->_config['consumersecret']);
 
         $results = array();
+        $local_path = $remote_path = '';
+        $domain_is_valid = 0;
+        $found_domain = false;
 
-        foreach ($files as $local_path => $remote_path) {
-            $url = $this->format_url($remote_path);
+        try {
+            $customdomains =  json_decode($api->get('/zones/pull.json'));
 
-            $client->query('cache.purge', $this->_config['apiid'], $auth_key, $date, $url);
+            if (preg_match("(200|201)", $customdomains->code)) {
 
-            if (!$client->isError()) {
-                $val = $client->getResponse();
+                foreach ($files as $file) {
+                    $local_path = $file['local_path'];
+                    $remote_path = $file['remote_path'];
 
-                if ($val) {
-                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_OK, 'OK');
-                } else {
-                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Unable to purge.');
+                    $domain_is_valid = 0;
+                    $found_domain = false;
+
+                    foreach ($customdomains->data->pullzones as $zone) {
+
+                        if ($zone->name . '.' . $this->_config['alias'] . '.' . W3TC_CDN_NETDNA_URL === $this->_config['domain'][0]) {
+                            try {
+                                $params = array('file' => '/' . $local_path);
+
+                                $file_purge = json_decode($api->delete('/zones/pull.json/' . $zone->id . '/cache', $params));
+
+                                if(preg_match("(200|201)", $customdomains->code)) {
+                                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_OK, 'OK');
+                                } else {
+                                    if(preg_match("(401|500)", $file_purge->code)) {
+                                        $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $file_purge->code . '. Please check your alias, consumer key, and private key.');
+                                    } else {
+                                        $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $file_purge->code);
+                                    }
+                                }
+
+                                $found_domain = true;
+                            } catch (CurlException $e) {
+                                $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_HALT, sprintf('Unable to purge (%s).', $e->getMessage()));
+                            }
+                        } else {
+                            $domain_is_valid++;
+                        }
+                    }
                 }
             } else {
-                $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_HALT, sprintf('Unable to purge (%s).', $client->getErrorMessage()));
+                if (preg_match("(401|500)", $customdomains->code)) {
+                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $customdomains->code . '. Please check your alias, consumer key, and private key.');
+                } else {
+                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $customdomains->code);
+                }
             }
-        }
 
-        if (function_exists('date_default_timezone_set')) {
-            date_default_timezone_set($timezone);
+        } catch (CurlException $e) {
+            $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_HALT, 'Failure to pull list of zones: ' . $e->getMessage());
+        } 
+
+        if ($domain_is_valid > 0 && !$found_domain) {
+            $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'No zones matching custom domain.');
         }
 
         return !$this->_is_error($results);
     }
 
     /**
-     * Returns SHA 256 hash of string
-     *
-     * @param string $string
-     * @return string
+     * Purge CDN completely
+     * @param $results
+     * @return bool
      */
-    function _sha256($string) {
-        if (function_exists('hash')) {
-            return hash('sha256', $string);
-        } elseif (function_exists('mhash')) {
-            return bin2hex(mhash(MHASH_SHA256, $string));
+    function purge_all(&$results) {
+        if (empty($this->_config['alias'])) {
+            $results = $this->_get_results(array(), W3TC_CDN_RESULT_HALT, 'Empty Alias.');
+
+            return false;
         }
 
-        return false;
+        if (empty($this->_config['consumerkey'])) {
+            $results = $this->_get_results(array(), W3TC_CDN_RESULT_HALT, 'Empty Consumer Key.');
+
+            return false;
+        }
+
+        if (empty($this->_config['consumersecret'])) {
+            $results = $this->_get_results(array(), W3TC_CDN_RESULT_HALT, 'Empty Consumer Secret.');
+
+            return false;
+        }
+
+        if (!class_exists('NetDNA')) {
+            w3_require_once(W3TC_LIB_NETDNA_DIR . '/NetDNA.php');
+        }
+
+        $api = new NetDNA($this->_config['alias'], $this->_config['consumerkey'], $this->_config['consumersecret']);
+
+        $results = array();
+        $local_path = $remote_path = '';
+        $domain_is_valid = 0;
+        $found_domain = false;
+
+        try {
+            $customdomains =  json_decode($api->get('/zones/pull.json'));
+
+            if (preg_match("(200|201)", $customdomains->code)) {
+
+                $local_path = 'all';
+                $remote_path = 'all';
+
+                $domain_is_valid = 0;
+                $found_domain = false;
+
+                foreach ($customdomains->data->pullzones as $zone) {
+
+                    if ($zone->name . '.' . $this->_config['alias'] . '.' . W3TC_CDN_NETDNA_URL === $this->_config['domain'][0]) {
+                        try {
+
+                            $file_purge = json_decode($api->delete('/zones/pull.json/' . $zone->id . '/cache'));
+
+                            if(preg_match("(200|201)", $customdomains->code)) {
+                                $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_OK, 'OK');
+                            } else {
+                                if(preg_match("(401|500)", $file_purge->code)) {
+                                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $file_purge->code . '. Please check your alias, consumer key, and private key.');
+                                } else {
+                                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $file_purge->code);
+                                }
+                            }
+
+                            $found_domain = true;
+                        } catch (CurlException $e) {
+                            $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_HALT, sprintf('Unable to purge (%s).', $e->getMessage()));
+                        }
+                    } else {
+                        $domain_is_valid++;
+                    }
+                }
+            } else {
+                if (preg_match("(401|500)", $customdomains->code)) {
+                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $customdomains->code . '. Please check your alias, consumer key, and private key.');
+                } else {
+                    $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Failed with error code ' . $customdomains->code);
+                }
+            }
+
+        } catch (CurlException $e) {
+            $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_HALT, 'Failure to pull list of zones: ' . $e->getMessage());
+        }
+
+        if ($domain_is_valid > 0 && !$found_domain) {
+            $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'No zones matching custom domain.');
+        }
+
+        return !$this->_is_error($results);
+    }
+
+    /**
+     * If the CDN supports fullpage mirroring
+     * @return bool
+     */
+    function supports_full_page_mirroring() {
+        return true;
     }
 }

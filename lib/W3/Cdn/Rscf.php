@@ -7,8 +7,8 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Base.php';
-require_once W3TC_LIB_CF_DIR . '/cloudfiles.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Base.php');
+w3_require_once(W3TC_LIB_CF_DIR . '/cloudfiles.php');
 
 /**
  * Class W3_Cdn_Rscf
@@ -50,15 +50,6 @@ class W3_Cdn_Rscf extends W3_Cdn_Base {
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Rscf($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -138,6 +129,28 @@ class W3_Cdn_Rscf extends W3_Cdn_Base {
     }
 
     /**
+     * Formats URL
+     *
+     * @param string $path
+     * @return string
+     */
+    function _format_url($path) {
+        $domain = $this->get_domain($path);
+
+        if ($domain) {
+            $scheme = $this->_get_scheme();
+
+            // it does not support '+', requires '%2B'
+            $path = str_replace('+', '%2B', $path);
+            $url = sprintf('%s://%s/%s', $scheme, $domain, $path);
+
+            return $url;
+        }
+
+        return false;
+    }
+
+    /**
      * Uploads files to CDN
      *
      * @param array $files
@@ -154,7 +167,10 @@ class W3_Cdn_Rscf extends W3_Cdn_Base {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
+        foreach ($files as $file) {
+            $local_path = $file['local_path'];
+            $remote_path = $file['remote_path'];
+
             if (!file_exists($local_path)) {
                 $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Source file not found.');
 
@@ -162,7 +178,7 @@ class W3_Cdn_Rscf extends W3_Cdn_Base {
             }
 
             try {
-                @$object = & new CF_Object($this->_container, $remote_path, false, false);
+                $object = new CF_Object($this->_container, $remote_path, false, false);
             } catch (Exception $exception) {
                 $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, sprintf('Unable to create object (%s).', $exception->getMessage()));
 
@@ -216,7 +232,10 @@ class W3_Cdn_Rscf extends W3_Cdn_Base {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
+        foreach ($files as $file) {
+            $local_path = $file['local_path'];
+            $remote_path = $file['remote_path'];
+
             try {
                 $this->_container->delete_object($remote_path);
                 $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_OK, 'OK');

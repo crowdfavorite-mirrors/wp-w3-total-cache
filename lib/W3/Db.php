@@ -14,701 +14,483 @@ if (!class_exists('W3_Db_Driver')) {
     }
 }
 
+//TODO: Added for backwards compability
+if(!class_exists('W3_Db')){
 /**
  * Class W3_Db
+ * Database access mediator
  */
 class W3_Db extends W3_Db_Driver {
-    /**
-     * Array of queries
-     *
-     * @var array
-     */
-    var $query_stats = array();
-
-    /**
-     * Queries total
-     *
-     * @var integer
-     */
-    var $query_total = 0;
-
-    /**
-     * Query cache hits
-     *
-     * @var integer
-     */
-    var $query_hits = 0;
-
-    /**
-     * Query cache misses
-     *
-     * @var integer
-     */
-    var $query_misses = 0;
-
-    /**
-     * Time total
-     *
-     * @var integer
-     */
-    var $time_total = 0;
-
-    /**
-     * Config
-     *
-     * @var W3_Config
-     */
-    var $_config = null;
-
-    /**
-     * Lifetime
-     *
-     * @var integer
-     */
-    var $_lifetime = null;
-
-    /**
-     * PHP5 constructor
-     *
-     * @param string $dbuser
-     * @param string $dbpassword
-     * @param string $dbname
-     * @param string $dbhost
-     */
-    function __construct($dbuser, $dbpassword, $dbname, $dbhost) {
-        $this->_config = & w3_instance('W3_Config');
-        $this->_lifetime = $this->_config->get_integer('dbcache.lifetime');
-
-        if ($this->_can_ob()) {
-            ob_start(array(
-                &$this,
-                'ob_callback'
-            ));
-        }
-
-        parent::__construct($dbuser, $dbpassword, $dbname, $dbhost);
-    }
-
-    /**
-     * PHP4 constructor
-     *
-     * @param string $dbuser
-     * @param string $dbpassword
-     * @param string $dbname
-     * @param string $dbhost
-     */
-    function W3_Db($dbuser, $dbpassword, $dbname, $dbhost) {
-        $this->__construct($dbuser, $dbpassword, $dbname, $dbhost);
-    }
-
-    /**
-     * Executes query
-     *
-     * @param string $query
-     * @return integer
-     */
-    function query($query) {
-        if (!$this->ready) {
-            return false;
-        }
-
-        $reason = '';
-        $cached = false;
-        $data = false;
-        $time_total = 0;
-
-        $this->query_total++;
-
-        $caching = $this->_can_cache($query, $reason);
-
-        if ($caching) {
-            $this->timer_start();
-            $cache_key = $this->_get_cache_key($query);
-            $cache = & $this->_get_cache();
-            $data = $cache->get($cache_key);
-            $time_total = $this->timer_stop();
-        }
-
-        if (is_array($data)) {
-            $cached = true;
-            $this->query_hits++;
-
-            $this->last_error = $data['last_error'];
-            $this->last_query = $data['last_query'];
-            $this->last_result = $data['last_result'];
-            $this->col_info = $data['col_info'];
-            $this->num_rows = $data['num_rows'];
-
-            $return_val = $data['return_val'];
-        } else {
-            $this->query_misses++;
-
-            $this->timer_start();
-            $return_val = parent::query($query);
-            $time_total = $this->timer_stop();
-
-            if ($caching) {
-                $data = array(
-                    'last_error' => $this->last_error,
-                    'last_query' => $this->last_query,
-                    'last_result' => $this->last_result,
-                    'col_info' => $this->col_info,
-                    'num_rows' => $this->num_rows,
-                    'return_val' => $return_val
-                );
-
-                $cache = & $this->_get_cache();
-                $cache->set($cache_key, $data, $this->_lifetime);
-            }
-        }
-
-        if ($this->_config->get_boolean('dbcache.debug')) {
-            $this->query_stats[] = array(
-                'query' => $query,
-                'caching' => $caching,
-                'reason' => $reason,
-                'cached' => $cached,
-                'data_size' => ($data ? strlen(serialize($data)) : 0),
-                'time_total' => $time_total
-            );
-        }
-
-        $this->time_total += $time_total;
-
-        return $return_val;
-    }
-
-    /**
-    * Insert a row into a table.
-    *
-    * @param string $table
-    * @param array $data
-    * @param array|string $format
-    * @return int|false
-    */
-    function insert($table, $data, $format = null) {
-        return $this->_nocache_instance()->insert($table, $data, $format);
-    }
-
-    /**
-    * Replace a row into a table.
-    *
-    * @param string $table
-    * @param array $data
-    * @param array|string $format
-    * @return int|false
-    */
-    function replace($table, $data, $format = null) {
-        return $this->_nocache_instance()->replace($table, $data, $format);
-    }
-
-    /**
-    * Update a row in the table
-    *
-    * @param string $table
-    * @param array $data
-    * @param array $where
-    * @param array|string $format
-    * @param array|string $format_where
-    * @return int|false
-    */
-    function update($table, $data, $where, $format = null, $where_format = null) {
-        return $this->_nocache_instance()->update($table, $data, $where, $format, $where_format);
-    }
-
-    /**
-     * Executes query without caching, completely ignored by cache
-     *
-     * @param string $query
-     * @return integer
-     */
-    function query_nocache($query) {
-        $return_val = parent::query($query);
-        return $return_val;
-    }
-
-    /**
-     * Flushes cache
-     *
-     * @return boolean
-     */
-    function flush_cache() {
-        $cache = & $this->_get_cache();
-
-        return $cache->flush();
-    }
-
     /**
      * Returns onject instance. Called by WP engine
      *
      * @return W3_Db
      */
-    function &instance() {
+    static function instance() {
         static $instances = array();
 
         if (!isset($instances[0])) {
+            $processors = array();
+            $call_default_constructor = true;
+
+            // no caching during activation
+            $is_installing = (defined('WP_INSTALLING') && WP_INSTALLING);
+
+            $config = w3_instance('W3_Config');
+            if (!$is_installing && $config->get_boolean('dbcache.enabled')) {
+                $processors[] = w3_instance('W3_DbCache');
+            }
+            if (w3_is_dbcluster()) {
+                $processors[] = w3_instance('W3_Enterprise_DbCluster');
+            }
+            
+            $processors[] = new W3_DbProcessor();
+            
             $class = __CLASS__;
-            @$instances[0] = & new $class(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
+            $o = new $class($processors);
+            
+            $underlying_manager = new W3_DbCallUnderlying($o);
+            
+            foreach ($processors as $processor) {
+                $processor->manager = $o;
+                $processor->underlying_manager = $underlying_manager;
+            }
+
+            // initialize after processors configured
+            $o->initialize();
+            
+            @$instances[0] = $o;
         }
 
         return $instances[0];
     }
-
-    function _nocache_instance()
-    {
-        if (!isset($this->_nocache_instance)) {
-            $this->_nocache_instance = new W3_Db_Nocache($this);
-        }
-
-        return $this->_nocache_instance;
-    }
-
-    /**
-     * Output buffering callback
-     *
-     * @param string $buffer
-     * @return string
+    
+    /*
+     * @param boolean $call_default_constructor
      */
-    function ob_callback(&$buffer) {
-        if ($buffer != '' && w3_is_xml($buffer)) {
-            $buffer .= "\r\n\r\n" . $this->_get_debug_info();
-        }
-
-        return $buffer;
+    function __construct($processors) {
+        $this->processors = $processors;
+        $this->processor = $processors[0];
+        $this->processor_number = 0;
     }
 
     /**
-     * Returns cache object
-     *
-     * @return W3_Cache_Base
+     * Initializes object after processors configured. Called from instance() only
      */
-    function &_get_cache() {
-        static $cache = array();
-
-        if (!isset($cache[0])) {
-            $engine = $this->_config->get_string('dbcache.engine');
-
-            switch ($engine) {
-                case 'memcached':
-                    $engineConfig = array(
-                        'servers' => $this->_config->get_array('dbcache.memcached.servers'),
-                        'persistant' => $this->_config->get_boolean('dbcache.memcached.persistant')
-                    );
-                    break;
-
-                case 'file':
-                    $engineConfig = array(
-                        'cache_dir' => W3TC_CACHE_FILE_DBCACHE_DIR,
-                        'locking' => $this->_config->get_boolean('dbcache.file.locking'),
-                        'flush_timelimit' => $this->_config->get_integer('timelimit.cache_flush')
-                    );
-                    break;
-
-                default:
-                    $engineConfig = array();
-            }
-        $engineConfig['module'] = 'dbcache';
-            require_once W3TC_LIB_W3_DIR . '/Cache.php';
-            @$cache[0] = & W3_Cache::instance($engine, $engineConfig);
-        }
-
-        return $cache[0];
+    function initialize() {
+        return $this->processor->initialize();
     }
 
     /**
-     * Check if can cache sql
-     *
-     * @param string $sql
-     * @param string $cache_reject_reason
-     * @return boolean
+     * Overriten logic of wp_db by processor.
      */
-    function _can_cache($sql, &$cache_reject_reason) {
-        /**
-         * Skip if disabled
-         */
-        if (!$this->_config->get_boolean('dbcache.enabled')) {
-            $cache_reject_reason = 'Database caching is disabled';
-
-            return false;
-        }
-
-        /**
-         * Check for DONOTCACHEDB constant
-         */
-        if (defined('DONOTCACHEDB') && DONOTCACHEDB) {
-            $cache_reject_reason = 'DONOTCACHEDB constant is defined';
-
-            return false;
-        }
-
-        /**
-         * Skip if doint AJAX
-         */
-        if (defined('DOING_AJAX')) {
-            $cache_reject_reason = 'Doing AJAX';
-
-            return false;
-        }
-
-        /**
-         * Skip if doing cron
-         */
-        if (defined('DOING_CRON')) {
-            $cache_reject_reason = 'Doing cron';
-
-            return false;
-        }
-
-        /**
-         * Skip if APP request
-         */
-        if (defined('APP_REQUEST')) {
-            $cache_reject_reason = 'Application request';
-
-            return false;
-        }
-
-        /**
-         * Skip if XMLRPC request
-         */
-        if (defined('XMLRPC_REQUEST')) {
-            $cache_reject_reason = 'XMLRPC request';
-
-            return false;
-        }
-
-        /**
-         * Skip if admin
-         */
-        if (defined('WP_ADMIN')) {
-            $cache_reject_reason = 'wp-admin';
-
-            return false;
-        }
-
-        /**
-         * Check for WPMU's and WP's 3.0 short init
-         */
-        if (defined('SHORTINIT') && SHORTINIT) {
-            $cache_reject_reason = 'Short init';
-
-            return false;
-        }
-
-        /**
-         * Skip if SQL is rejected
-         */
-        if (!$this->_check_sql($sql)) {
-            $cache_reject_reason = 'Query is rejected';
-
-            return false;
-        }
-
-        /**
-         * Skip if request URI is rejected
-         */
-        if (!$this->_check_request_uri()) {
-            $cache_reject_reason = 'Request URI is rejected';
-
-            return false;
-        }
-
-        /**
-         * Skip if cookie is rejected
-         */
-        if (!$this->_check_cookies()) {
-            $cache_reject_reason = 'Cookie is rejected';
-
-            return false;
-        }
-
-        /**
-         * Skip if user is logged in
-         */
-        if ($this->_config->get_boolean('dbcache.reject.logged') && !$this->_check_logged_in()) {
-            $cache_reject_reason = 'User is logged in';
-
-            return false;
-        }
-
-        return true;
+    function insert($table, $data, $format = null) {
+        return $this->processor->insert($table, $data, $format);
     }
 
     /**
-     * Check if we can start OB
-     *
-     * @return boolean
-     */
-    function _can_ob() {
-        /**
-         * Database cache should be enabled
-         */
-        if (!$this->_config->get_boolean('dbcache.enabled')) {
-            return false;
-        }
-
-        /**
-         * Debug should be enabled
-         */
-        if (!$this->_config->get_boolean('dbcache.debug')) {
-            return false;
-        }
-
-        /**
-         * Skip if admin
-         */
-        if (defined('WP_ADMIN')) {
-            return false;
-        }
-
-        /**
-         * Skip if doint AJAX
-         */
-        if (defined('DOING_AJAX')) {
-            return false;
-        }
-
-        /**
-         * Skip if doing cron
-         */
-        if (defined('DOING_CRON')) {
-            return false;
-        }
-
-        /**
-         * Skip if APP request
-         */
-        if (defined('APP_REQUEST')) {
-            return false;
-        }
-
-        /**
-         * Skip if XMLRPC request
-         */
-        if (defined('XMLRPC_REQUEST')) {
-            return false;
-        }
-
-        /**
-         * Check for WPMU's and WP's 3.0 short init
-         */
-        if (defined('SHORTINIT') && SHORTINIT) {
-            return false;
-        }
-
-        /**
-         * Check User Agent
-         */
-        if (isset($_SERVER['HTTP_USER_AGENT']) && stristr($_SERVER['HTTP_USER_AGENT'], W3TC_POWERED_BY) !== false) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Check SQL
-     *
-     * @param string $sql
-     * @return boolean
-     */
-    function _check_sql($sql) {
-        $auto_reject_strings = array(
-            '^\s*insert\b',
-            '^\s*delete\b',
-            '^\s*update\b',
-            '^\s*replace\b',
-            '^\s*create\b',
-            '^\s*alter\b',
-            '^\s*show\b',
-            '^\s*set\b',
-            '\bsql_calc_found_rows\b',
-            '\bfound_rows\(\)',
-            '\bautoload\s+=\s+\'yes\'',
-            '\bw3tc_request_data\b'
-        );
-
-        if (preg_match('~' . implode('|', $auto_reject_strings) . '~is', $sql)) {
-            return false;
-        }
-
-        $reject_sql = $this->_config->get_array('dbcache.reject.sql');
-
-        foreach ($reject_sql as $expr) {
-            $expr = trim($expr);
-            $expr = str_replace('{prefix}', $this->prefix, $expr);
-            if ($expr != '' && preg_match('~' . $expr . '~i', $sql)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Check request URI
-     *
-     * @return boolean
-     */
-    function _check_request_uri() {
-        $auto_reject_uri = array(
-            'wp-login',
-            'wp-register'
-        );
-
-        foreach ($auto_reject_uri as $uri) {
-            if (strstr($_SERVER['REQUEST_URI'], $uri) !== false) {
-                return false;
-            }
-        }
-
-        $reject_uri = $this->_config->get_array('dbcache.reject.uri');
-        $reject_uri = array_map('w3_parse_path', $reject_uri);
-
-        foreach ($reject_uri as $expr) {
-            $expr = trim($expr);
-            if ($expr != '' && preg_match('~' . $expr . '~i', $_SERVER['REQUEST_URI'])) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Checks for WordPress cookies
-     *
-     * @return boolean
-     */
-    function _check_cookies() {
-        foreach (array_keys($_COOKIE) as $cookie_name) {
-            if ($cookie_name == 'wordpress_test_cookie') {
-                continue;
-            }
-            if (preg_match('/^wp-postpass|^comment_author/', $cookie_name)) {
-                return false;
-            }
-        }
-
-        foreach ($this->_config->get_array('dbcache.reject.cookie') as $reject_cookie) {
-            foreach (array_keys($_COOKIE) as $cookie_name) {
-                if (strstr($cookie_name, $reject_cookie) !== false) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Check if user is logged in
-     *
-     * @return boolean
-     */
-    function _check_logged_in() {
-        foreach (array_keys($_COOKIE) as $cookie_name) {
-            if ($cookie_name == 'wordpress_test_cookie') {
-                continue;
-            }
-            if (strpos($cookie_name, 'wordpress') === 0) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Returns cache key
-     *
-     * @param string $sql
-     * @return string
-     */
-    function _get_cache_key($sql) {
-        $key = sprintf('w3tc_%s_sql_%s', w3_get_host_id(), md5($sql));
-
-        /**
-         * Allow to modify cache key by W3TC plugins
-         */
-        $key = w3tc_do_action('w3tc_dbcache_cache_key', $key);
-
-        return $key;
-    }
-
-    /**
-     * Returns debug info
-     *
-     * @return string
-     */
-    function _get_debug_info() {
-        $debug_info = "<!-- W3 Total Cache: Db cache debug info:\r\n";
-        $debug_info .= sprintf("%s%s\r\n", str_pad('Engine: ', 20), w3_get_engine_name($this->_config->get_string('dbcache.engine')));
-        $debug_info .= sprintf("%s%d\r\n", str_pad('Total queries: ', 20), $this->query_total);
-        $debug_info .= sprintf("%s%d\r\n", str_pad('Cached queries: ', 20), $this->query_hits);
-        $debug_info .= sprintf("%s%.4f\r\n", str_pad('Total query time: ', 20), $this->time_total);
-
-        if (count($this->query_stats)) {
-            $debug_info .= "SQL info:\r\n";
-            $debug_info .= sprintf("%s | %s | %s | % s | %s | %s\r\n",
-                str_pad('#', 5, ' ', STR_PAD_LEFT), str_pad('Time (s)', 8, ' ', STR_PAD_LEFT),
-                str_pad('Caching (Reject reason)', 30, ' ', STR_PAD_BOTH),
-                str_pad('Status', 10, ' ', STR_PAD_BOTH),
-                str_pad('Data size (b)', 13, ' ', STR_PAD_LEFT),
-                'Query');
-
-            foreach ($this->query_stats as $index => $query) {
-                $debug_info .= sprintf("%s | %s | %s | %s | %s | %s\r\n",
-                    str_pad($index + 1, 5, ' ', STR_PAD_LEFT),
-                    str_pad(round($query['time_total'], 4), 8, ' ', STR_PAD_LEFT),
-                    str_pad(($query['caching'] ? 'enabled'
-                            : sprintf('disabled (%s)', $query['reason'])), 30, ' ', STR_PAD_BOTH),
-                    str_pad(($query['cached'] ? 'cached' : 'not cached'), 10, ' ', STR_PAD_BOTH),
-                    str_pad($query['data_size'], 13, ' ', STR_PAD_LEFT),
-                    w3_escape_comment(trim($query['query'])));
-            }
-        }
-
-        $debug_info .= '-->';
-
-        return $debug_info;
-    }
-}
-
-/**
- * Class W3_Db
- */
-class W3_Db_Nocache extends W3_Db_Driver {
-    function __construct($object_doing_query) {
-        $this->_object_doing_query = $object_doing_query;
-
-        # _real_escape is called on that object, 
-        # which requires those inst. vars
-        if (isset($object_doing_query->real_escape)) {
-            $this->real_escape = $object_doing_query->real_escape;
-        }
-        if (isset($object_doing_query->dbh)) {
-            $this->dbh = $object_doing_query->dbh;
-        }
-
-    }
-
-    /**
-     * PHP4 constructor
-     *
-     * @param string $dbhost
-     */
-    function W3_Db_Nocache($object_doing_query) {
-        $this->__construct($object_doing_query);
-    }
-
-    /**
-     * Executes query
-     *
-     * @param string $query
-     * @return integer
+     * Overriten logic of wp_db by processor.
      */
     function query($query) {
-        return $this->_object_doing_query->query_nocache($query);
+        return $this->processor->query($query);
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function replace($table, $data, $format = null) {
+        return $this->processor->replace($table, $data, $format);
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function update($table, $data, $where, $format = null, $where_format = null) {
+        return $this->processor->update($table, $data, $where, $format, $where_format);
+    }
+    
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function init_charset() {
+        return $this->processor->init_charset();
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function set_charset($dbh, $charset = null, $collate = null) {
+        return $this->processor->set_charset($dbh, $charset, $collate);
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function flush() {
+        return $this->processor->flush();
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function check_database_version($dbh_or_table = false) {
+        return $this->processor->check_database_version($dbh_or_table);
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function supports_collation( $dbh_or_table = false ) {
+        return $this->processor->supports_collation($dbh_or_table);
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function has_cap( $db_cap, $dbh_or_table = false ) {
+        return $this->processor->has_cap($db_cap, $dbh_or_table);
+    }
+
+    /**
+     * Overriten logic of wp_db by processor.
+     */
+    function db_version( $dbh_or_table = false ) {
+        return $this->processor->db_version($dbh_or_table);
+    }
+    
+    /**
+     * Default initialization method, calls wp_db apropriate method
+     */
+    function default_initialize() {
+        parent::__construct(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_insert($table, $data, $format = null) {
+        return parent::insert($table, $data, $format);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_query($query) {
+        return parent::query($query);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_replace($table, $data, $format = null) {
+        return parent::replace($table, $data, $format);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_update($table, $data, $where, $format = null, $where_format = null) {
+        return parent::update($table, $data, $where, $format, $where_format);
+    }
+    
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_init_charset() {
+        return parent::init_charset();
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_set_charset($dbh, $charset = null, $collate = null) {
+        return parent::set_charset($dbh, $charset, $collate);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_flush() {
+        return parent::flush();
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_check_database_version($dbh_or_table = false) {
+        return parent::check_database_version($dbh_or_table);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_supports_collation( $dbh_or_table = false ) {
+        return parent::supports_collation($dbh_or_table);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_has_cap( $db_cap, $dbh_or_table = false ) {
+        return parent::has_cap($db_cap, $dbh_or_table);
+    }
+
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function default_db_version( $dbh_or_table = false ) {
+        return parent::db_version($dbh_or_table);
+    }
+    
+    /**
+     * Default implementation, calls wp_db apropriate method
+     */
+    function switch_active_processor($offset) {
+        $new_processor_number = $this->processor_number + $offset;
+        if ($new_processor_number <= 0) {
+            $new_processor_number = 0;
+        } else if ($new_processor_number >= count($this->processors)) {
+            $new_processor_number = count($this->processors) - 1;
+        }
+        
+        $offset_made = $new_processor_number - $this->processor_number;
+        $this->processor_number = $new_processor_number;
+        $this->processor = $this->processors[$new_processor_number];
+        
+        return $offset_made;
     }
 }
+
+
+
+/**
+ * Class W3_DbProcessor
+ * Does separate operation without inheritance
+ */
+class W3_DbProcessor {
+    /**
+     * Top database-connection object.
+     * Initialized by W3_Db::instance
+     *
+     * @var object
+     */
+    var $manager = null;
+
+    /**
+     * Database-connection using overrides of next processor in queue
+     * Initialized by W3_Db::instance
+     * 
+     * @var object
+     */
+    var $underlying_manager = null;
+    
+    /**
+     * Placeholder for database initialization
+     */
+    function initialize() {
+        return $this->manager->default_initialize();
+    }
+    
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function insert($table, $data, $format = null) {
+        return $this->manager->default_insert($table, $data, $format);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function query($query) {
+        return $this->manager->default_query($query);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function replace($table, $data, $format = null) {
+        return $this->manager->default_replace($table, $data, $format);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function update($table, $data, $where, $format = null, $where_format = null) {
+        return $this->manager->default_update($table, $data, $where, $format, $where_format);
+    }
+    
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function init_charset() {
+        return $this->manager->default_init_charset();
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function set_charset($dbh, $charset = null, $collate = null) {
+        return $this->manager->default_set_charset($dbh, $charset, $collate);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function flush() {
+        return $this->manager->default_flush();
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function check_database_version($dbh_or_table = false) {
+        return $this->manager->default_check_database_version($dbh_or_table);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function supports_collation( $dbh_or_table = false ) {
+        return $this->manager->default_supports_collation($dbh_or_table);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function has_cap( $db_cap, $dbh_or_table = false ) {
+        return $this->manager->default_has_cap($db_cap, $dbh_or_table);
+    }
+
+    /**
+     * Placeholder for apropriate wp_db method replacement.
+     * By default calls wp_db implementation
+     */
+    function db_version( $dbh_or_table = false ) {
+        return $this->manager->default_db_version($dbh_or_table);
+    }
+}
+
+
+
+/**
+ * Class W3_DbCallUnderlying
+ */
+class W3_DbCallUnderlying {
+    function __construct($manager) {
+        $this->manager = $manager;
+    }
+
+    /**
+     * Calls underlying processor's aproptiate method of wp_db
+     */
+    function initialize() {
+        $switched = $this->manager->switch_active_processor(1);
+        
+        try {
+            $r = $this->manager->initialize();
+            
+            $this->manager->switch_active_processor(-$switched);
+            return $r;
+        } catch (Exception $e) {
+            $this->manager->switch_active_processor(-$switched);
+            throw $e;
+        }
+    }
+
+    /**
+     * Calls underlying processor's aproptiate method of wp_db
+     */
+    function flush() {
+        $switched = $this->manager->switch_active_processor(1);
+        
+        try {
+            $r = $this->manager->flush();
+            
+            $this->manager->switch_active_processor(-$switched);
+            return $r;
+        } catch (Exception $e) {
+            $this->manager->switch_active_processor(-$switched);
+            throw $e;
+        }
+    }
+    
+    /**
+     * Calls underlying processor's aproptiate method of wp_db
+     */
+    function query($query) {
+        $switched = $this->manager->switch_active_processor(1);
+        
+        try {
+            $r = $this->manager->query($query);
+            
+            $this->manager->switch_active_processor(-$switched);
+            return $r;
+        } catch (Exception $e) {
+            $this->manager->switch_active_processor(-$switched);
+            throw $e;
+        }
+    }
+    
+    /**
+     * Calls underlying processor's aproptiate method of wp_db
+     */
+    function insert($table, $data, $format = null) {
+        $switched = $this->manager->switch_active_processor(1);
+        
+        try {
+            $r = $this->manager->insert($table, $data, $format);
+            
+            $this->manager->switch_active_processor(-$switched);
+            return $r;
+        } catch (Exception $e) {
+            $this->manager->switch_active_processor(-$switched);
+            throw $e;
+        }
+    }
+
+    /**
+     * Calls underlying processor's aproptiate method of wp_db
+     */
+    function replace($table, $data, $format = null) {
+        $switched = $this->manager->switch_active_processor(1);
+        
+        try {
+            $r = $this->manager->replace($table, $data, $format);
+            
+            $this->manager->switch_active_processor(-$switched);
+            return $r;
+        } catch (Exception $e) {
+            $this->manager->switch_active_processor(-$switched);
+            throw $e;
+        }
+    }
+
+    /**
+     * Calls underlying processor's aproptiate method of wp_db
+     */
+    function update($table, $data, $where, $format = null, $where_format = null) {
+        $switched = $this->manager->switch_active_processor(1);
+        
+        try {
+            $r = $this->manager->update($table, $data, $where, $format, $where_format);
+            
+            $this->manager->switch_active_processor(-$switched);
+            return $r;
+        } catch (Exception $e) {
+            $this->manager->switch_active_processor(-$switched);
+            throw $e;
+        }
+    }
+}
+}
+?>

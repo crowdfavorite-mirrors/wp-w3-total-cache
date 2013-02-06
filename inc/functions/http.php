@@ -1,6 +1,21 @@
 <?php
 
 /**
+ * Filter handler for use_curl_transport.
+ * Workaround to not use curl for extra http methods
+ *
+ * @param $result boolean
+ * @param $args array
+ * @return boolean
+ */
+function w3_use_curl_transport($result, $args) {
+    if (isset($args['method']) && $args['method'] != 'GET' && $args['method'] != 'POST')
+        return false;
+    
+    return $result;
+}
+        
+/**
  * Sends HTTP request
  *
  * @param $url string
@@ -8,6 +23,12 @@
  * @return WP_Error|array
  */
 function w3_http_request($url, $args = array()) {
+    static $filter_set = false;
+    if (!$filter_set) {
+        add_filter('use_curl_transport', 'w3_use_curl_transport', 10, 2);
+        $filter_set = true;
+    }
+    
     $args = array_merge(array(
         'user-agent' => W3TC_POWERED_BY
     ), $args);

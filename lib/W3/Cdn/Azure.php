@@ -7,7 +7,7 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Base.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Base.php');
 
 /**
  * Class W3_Cdn_Azure
@@ -34,15 +34,6 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Azure($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -102,13 +93,15 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
-            $results[] = $this->_upload($local_path, $remote_path, $force_rewrite);
+        foreach ($files as $file) {
+            $remote_path = $file['remote_path'];
+
+            $results[] = $this->_upload($file, $force_rewrite);
 
             if ($this->_config['compression'] && $this->_may_gzip($remote_path)) {
-                $remote_path_gzip = $remote_path . $this->_gzip_extension;
+                $file['remote_path_gzip'] = $remote_path . $this->_gzip_extension;
 
-                $results[] = $this->_upload_gzip($local_path, $remote_path_gzip, $force_rewrite);
+                $results[] = $this->_upload_gzip($file, $force_rewrite);
             }
         }
 
@@ -123,7 +116,10 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
      * @param bool $force_rewrite
      * @return array
      */
-    function _upload($local_path, $remote_path, $force_rewrite = false) {
+    function _upload($file, $force_rewrite = false) {
+        $local_path = $file['local_path'];
+        $remote_path = $file['remote_path'];
+
         if (!file_exists($local_path)) {
             return $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Source file not found.');
         }
@@ -143,7 +139,7 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
             }
         }
 
-        $headers = $this->_get_headers($local_path);
+        $headers = $this->_get_headers($file);
         $headers = array_merge($headers, array(
             'Content-MD5' => $content_md5
         ));
@@ -160,12 +156,14 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
     /**
      * Uploads gzipped file
      *
-     * @param string $local_path
-     * @param string $remote_path
+     * @param array $file CDN file array
      * @param bool $force_rewrite
      * @return array
      */
-    function _upload_gzip($local_path, $remote_path, $force_rewrite = false) {
+    function _upload_gzip($file, $force_rewrite = false) {
+        $local_path = $file['local_path'];
+        $remote_path = $file['remote_path_gzip'];
+
         if (!function_exists('gzencode')) {
             return $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, "GZIP library doesn't exists.");
         }
@@ -196,7 +194,7 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
             }
         }
 
-        $headers = $this->_get_headers($local_path);
+        $headers = $this->_get_headers($file);
         $headers = array_merge($headers, array(
             'Content-MD5' => $content_md5,
             'Content-Encoding' => 'gzip'
@@ -227,7 +225,10 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
+        foreach ($files as $file) {
+            $local_path = $file['local_path'];
+            $remote_path = $file['remote_path'];
+
             try {
                 $this->_client->deleteBlob($this->_config['container'], $remote_path);
                 $results[] = $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_OK, 'OK');
@@ -426,7 +427,7 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
     /**
      * Returns array of headers
      *
-     * @param string $file
+     * @param array $file CDN file array
      * @return array
      */
     function _get_headers($file) {
@@ -448,5 +449,13 @@ class W3_Cdn_Azure extends W3_Cdn_Base {
         }
 
         return $headers;
+    }
+
+    /**
+     * How and if headers should be set
+     * @return string W3TC_CDN_HEADER_NONE, W3TC_CDN_HEADER_UPLOADABLE, W3TC_CDN_HEADER_MIRRORING
+     */
+    function headers_support() {
+        return W3TC_CDN_HEADER_UPLOADABLE;
     }
 }

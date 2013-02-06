@@ -11,7 +11,7 @@ define('W3TC_CDN_MIRROR_COTENDO_WSDL', 'https://api.cotendo.net/cws?wsdl');
 define('W3TC_CDN_MIRROR_COTENDO_ENDPOINT', 'http://api.cotendo.net/cws?ver=1.0');
 define('W3TC_CDN_MIRROR_COTENDO_NAMESPACE', 'http://api.cotendo.net/');
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Mirror.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Mirror.php');
 
 /**
  * Class W3_Cdn_Mirror_Cotendo
@@ -30,15 +30,6 @@ class W3_Cdn_Mirror_Cotendo extends W3_Cdn_Mirror {
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Mirror_Cotendo($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -67,7 +58,7 @@ class W3_Cdn_Mirror_Cotendo extends W3_Cdn_Mirror {
             return false;
         }
 
-        require_once W3TC_LIB_NUSOAP_DIR . '/nusoap.php';
+        w3_require_once(W3TC_LIB_NUSOAP_DIR . '/nusoap.php');
 
         $client = new nusoap_client(
             W3TC_CDN_MIRROR_COTENDO_WSDL,
@@ -90,7 +81,8 @@ class W3_Cdn_Mirror_Cotendo extends W3_Cdn_Mirror {
         foreach ((array) $this->_config['zones'] as $zone) {
             $expressions = array();
 
-            foreach ($files as $remote_path) {
+            foreach ($files as $file) {
+                $remote_path = $file['remote_path'];
                 $expressions[] = '/' . $remote_path;
             }
 
@@ -121,6 +113,23 @@ class W3_Cdn_Mirror_Cotendo extends W3_Cdn_Mirror {
 
         $results = $this->_get_results($files, W3TC_CDN_RESULT_OK, 'OK');
 
+        return true;
+    }
+
+    /**
+     * Purges CDN completely
+     * @param $results
+     * @return bool
+     */
+    function purge_all(&$results) {
+        return $this->purge(array(array('local_path'=>'*', 'remote_path'=> '*')), $results);
+    }
+
+    /**
+     * If CDN supports path of type folder/*
+     * @return bool
+     */
+    function supports_folder_asterisk() {
         return true;
     }
 }

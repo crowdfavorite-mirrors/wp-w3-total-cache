@@ -11,6 +11,9 @@ if (!defined('W3TC_DIR')) {
     define('W3TC_DIR', WP_CONTENT_DIR . '/plugins/w3-total-cache');
 }
 
+/**
+ * Abort W3TC loading if WordPress is upgrading
+ */
 if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
     if (!defined('WP_ADMIN')) { // lets don't show error on front end
         require_once (ABSPATH . WPINC . '/wp-db.php');
@@ -21,8 +24,11 @@ if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
 } else {
     require_once W3TC_DIR . '/inc/define.php';
 
-    $config = & w3_instance('W3_Config');
-    if ($config->get_boolean('dbcache.enabled')) {
+    // no caching during activation
+    $is_installing = (defined('WP_INSTALLING') && WP_INSTALLING);
+
+    $config = w3_instance('W3_Config');
+    if ((!$is_installing && $config->get_boolean('dbcache.enabled')) || w3_is_dbcluster()) {
         if (defined('DB_TYPE')) {
             $db_driver_path = sprintf('%s/Db/%s.php', W3TC_LIB_W3_DIR, DB_TYPE);
 
@@ -33,8 +39,8 @@ if (!@is_dir(W3TC_DIR) || !file_exists(W3TC_DIR . '/inc/define.php')) {
             }
         }
 
-        require_once W3TC_LIB_W3_DIR . '/Db.php';
+        w3_require_once(W3TC_LIB_W3_DIR . '/Db.php');
 
-        @$GLOBALS['wpdb'] = & W3_Db::instance();
+        $GLOBALS['wpdb'] = W3_Db::instance();
     }
 }

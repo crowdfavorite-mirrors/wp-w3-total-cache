@@ -19,16 +19,7 @@ class W3_Plugin {
      * PHP5 Constructor
      */
     function __construct() {
-        $this->_config = & w3_instance('W3_Config');
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @return W3_Plugin
-     */
-    function W3_Plugin() {
-        $this->__construct();
+        $this->_config = w3_instance('W3_Config');
     }
 
     /**
@@ -38,34 +29,24 @@ class W3_Plugin {
     }
 
     /**
-     * Check if plugin is locked
-     *
-     * @return boolean
+     * Get the corresponding Admin plugin for the module
+     * @return null|W3_Plugin
      */
-    function locked() {
-        static $locked = null;
+    function get_admin() {
+        return null;
+    }
 
-        if ($locked === null) {
-            if (w3_is_network() && function_exists('get_blog_list')) {
-                global $blog_id;
+    /**
+     * Activate plugin action (called by W3_Plugins)
+     * @return mixed
+     */
+    function activate() {
+    }
 
-                $blogs = get_blog_list();
-
-                foreach ($blogs as $blog) {
-                    if ($blog['blog_id'] != $blog_id) {
-                        $active_plugins = get_blog_option($blog['blog_id'], 'active_plugins');
-
-                        if (in_array(W3TC_FILE, $active_plugins)) {
-                            $locked = true;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                $locked = false;
-            }
-        }
-
-        return $locked;
+    /**
+     * Deactivate plugin action (called by W3_Plugins)
+     * @return mixed
+     */
+    function deactivate() {
     }
 }

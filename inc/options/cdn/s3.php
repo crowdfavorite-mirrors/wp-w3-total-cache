@@ -1,27 +1,35 @@
 <?php if (!defined('W3TC')) die(); ?>
 <tr>
+    <th colspan="2">
+        <span class="description">We recommend that you use <a href="http://docs.amazonwebservices.com/IAM/latest/UserGuide/AccessPolicyLanguage_KeyConcepts.html" target="_blank"><acronym title="AWS Identity and Access Management">IAM</acronym></a> to create a new policy for <acronym title="Amazon Web Services">AWS</acronym> services that have limited permissions. A helpful tool: <a href="​http://awspolicygen.s3.amazonaws.com/policygen.html" target="_blank">AWS Policy Generator</a></span>
+    </th>
+</tr>
+<tr>
 	<th style="width: 300px;"><label for="cdn_s3_key">Access key ID:</label></th>
 	<td>
-		<input id="cdn_s3_key" class="w3tc-ignore-change" type="text" name="cdn.s3.key" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.s3.key')); ?>" size="30" />
+		<input id="cdn_s3_key" class="w3tc-ignore-change" type="text"
+                   <?php $this->sealing_disabled('cdn') ?> name="cdn.s3.key" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.s3.key')); ?>" size="30" />
 	</td>
 </tr>
 <tr>
 	<th><label for="cdn_s3_secret">Secret key:</label></th>
 	<td>
-		<input id="cdn_s3_secret" class="w3tc-ignore-change" type="password" name="cdn.s3.secret" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.s3.secret')); ?>" size="60" />
+		<input id="cdn_s3_secret" class="w3tc-ignore-change"
+                   <?php $this->sealing_disabled('cdn') ?> type="password" name="cdn.s3.secret" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.s3.secret')); ?>" size="60" />
 	</td>
 </tr>
 <tr>
 	<th><label for="cdn_s3_bucket">Bucket:</label></th>
 	<td>
-		<input id="cdn_s3_bucket" type="text" name="cdn.s3.bucket" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.s3.bucket')); ?>" size="30" />
+		<input id="cdn_s3_bucket" type="text" name="cdn.s3.bucket"
+                   <?php $this->sealing_disabled('cdn') ?> value="<?php echo htmlspecialchars($this->_config->get_string('cdn.s3.bucket')); ?>" size="30" />
 		<input class="button button-cdn-s3-bucket-location cdn_s3 {nonce: '<?php echo wp_create_nonce('w3tc'); ?>'}" type="button" value="Create bucket" />
 	</td>
 </tr>
 <tr>
 	<th><label for="cdn_s3_ssl"><acronym title="Secure Sockets Layer">SSL</acronym> support:</label></th>
 	<td>
-		<select id="cdn_s3_ssl" name="cdn.s3.ssl">
+		<select id="cdn_s3_ssl" name="cdn.s3.ssl" <?php $this->sealing_disabled('cdn') ?>>
 			<option value="auto"<?php selected($this->_config->get_string('cdn.s3.ssl'), 'auto'); ?>>Auto (determine connection type automatically)</option>
 			<option value="enabled"<?php selected($this->_config->get_string('cdn.s3.ssl'), 'enabled'); ?>>Enabled (always use SSL)</option>
 			<option value="disabled"<?php selected($this->_config->get_string('cdn.s3.ssl'), 'disabled'); ?>>Disabled (always use HTTP)</option>

@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Base.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Base.php');
 
 /**
  * Class W3_Cdn_Mirror
@@ -24,15 +24,6 @@ class W3_Cdn_Mirror extends W3_Cdn_Base {
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Mirror($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -96,5 +87,13 @@ class W3_Cdn_Mirror extends W3_Cdn_Base {
         }
 
         return array();
+    }
+
+    /**
+     * How and if headers should be set
+     * @return string W3TC_CDN_HEADER_NONE, W3TC_CDN_HEADER_UPLOADABLE, W3TC_CDN_HEADER_MIRRORING
+     */
+    function headers_support() {
+        return W3TC_CDN_HEADER_MIRRORING;
     }
 }

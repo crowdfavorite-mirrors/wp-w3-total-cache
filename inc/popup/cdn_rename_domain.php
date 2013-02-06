@@ -43,9 +43,8 @@ jQuery(function() {
 	<input id="cdn_rename_domain_start" class="button-primary" type="button" value="Start"<?php if (! $total): ?> disabled="disabled"<?php endif; ?> />
 </p>
 
-<div id="cdn_rename_domain_progress" class="progress">
-	<div class="progress-value">0%</div>
-	<div class="progress-bar"></div>
+<div id="cdn_rename_domain_progress" class="media-item">
+    <div class="progress"><div class="bar"><div class="filename original"><span class="percent">0%</span></div></div></div>
 	<div class="clear"></div>
 </div>
 

@@ -1,5 +1,5 @@
 <?php if (!defined('W3TC')) die(); ?>
-<h3>Select bucket location</h3>
+<h3>Select bucket location:</h3>
 
 <p>
     <label>Location:

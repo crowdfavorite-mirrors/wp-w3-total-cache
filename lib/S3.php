@@ -1277,7 +1277,7 @@ class S3 {
 	* @return string
 	*/
 	public static function __getMimeType(&$file) {
-		require_once W3TC_INC_DIR . '/functions/mime.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/mime.php');
 
 		$type = w3_get_mime_type($file);
 
@@ -1466,7 +1466,6 @@ final class S3Request {
 		curl_setopt($curl, CURLOPT_WRITEFUNCTION, array(&$this, '__responseWriteCallback'));
 		curl_setopt($curl, CURLOPT_HEADERFUNCTION, array(&$this, '__responseHeaderCallback'));
 		@curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($curl, CURLOPT_TIMEOUT, 120);
 
 		// Request types
 		switch ($this->verb) {

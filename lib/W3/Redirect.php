@@ -8,25 +8,22 @@
  * Class W3_Redirect
  */
 class W3_Redirect {
+
+    private $_mobile = null;
+    private $_referrer = null;
+
     /**
      * PHP5 Constructor
      */
     function __construct() {
-        $this->_config = & w3_instance('W3_Config');
-        if ($this->_config->get_boolean('mobile.enabled')) {
-            $this->_mobile = & w3_instance('W3_Mobile');
+        $config = w3_instance('W3_Config');
+        if ($config->get_boolean('mobile.enabled')) {
+            $this->_mobile = w3_instance('W3_Mobile');
         }
 
-        if ($this->_config->get_boolean('referrer.enabled')) {
-            $this->_referrer = & w3_instance('W3_Referrer');
+        if ($config->get_boolean('referrer.enabled')) {
+            $this->_referrer = w3_instance('W3_Referrer');
         }
-    }
-
-    /**
-     * PHP4 Constructor
-     */
-    function W3_Redirect() {
-        $this->__construct();
     }
 
     /**
@@ -50,8 +47,11 @@ class W3_Redirect {
          * Handle mobile or referrer redirects
          */
         if ($this->_mobile || $this->_referrer) {
-            $mobile_redirect = $this->_mobile->get_redirect();
-            $referrer_redirect = $this->_referrer->get_redirect();
+            $mobile_redirect = $referrer_redirect = '';
+            if ($this->_mobile)
+                $mobile_redirect = $this->_mobile->get_redirect();
+            if ($this->_referrer)
+                $referrer_redirect = $this->_referrer->get_redirect();
 
             $redirect = ($mobile_redirect ? $mobile_redirect : $referrer_redirect);
 

@@ -9,8 +9,8 @@ if (!defined('W3TC')) {
 
 define('W3TC_CACHE_FILE_EXPIRE_MAX', 2592000);
 
-require_once W3TC_INC_DIR . '/functions/file.php';
-require_once W3TC_LIB_W3_DIR . '/Cache/Base.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+w3_require_once(W3TC_LIB_W3_DIR . '/Cache/Base.php');
 
 /**
  * Class W3_Cache_File
@@ -21,51 +21,68 @@ class W3_Cache_File extends W3_Cache_Base {
      *
      * @var string
      */
-    var $_cache_dir = '';
+    protected $_cache_dir = '';
 
+    /**
+     * Directory to flush
+     * @var string
+     */
+    protected $_flush_dir = '';
     /**
      * Exclude files
      *
      * @var array
      */
-    var $_exclude = array();
+    protected $_exclude = array();
 
     /**
      * Flush time limit
      *
      * @var int
      */
-    var $_flush_timelimit = 0;
+    protected $_flush_timelimit = 0;
 
     /**
      * File locking
      *
      * @var boolean
      */
-    var $_locking = false;
+    protected $_locking = false;
 
-  var $use_wp_hash = false;
     /**
-     * PHP5-style constructor
+     * If path should be generated based on wp_hash
+     *
+     * @var bool
+     */
+    protected $_use_wp_hash = false;
+
+    /**
+     * Constructor
      *
      * @param array $config
      */
     function __construct($config = array()) {
-        $this->_cache_dir = isset($config['cache_dir']) ? trim($config['cache_dir']) : 'cache';
+        parent::__construct($config);
+        if (isset($config['cache_dir']))
+            $this->_cache_dir = trim($config['cache_dir']);
+        else
+            $this->_cache_dir = w3_cache_blog_dir($config['section'], $config['blog_id']);
+
         $this->_exclude = isset($config['exclude']) ? (array) $config['exclude'] : array();
         $this->_flush_timelimit = isset($config['flush_timelimit']) ? (int) $config['flush_timelimit'] : 180;
         $this->_locking = isset($config['locking']) ? (boolean) $config['locking'] : false;
-        if (isset($config['module']) && $config['module'] == 'dbcache')
-            $this->use_wp_hash = true;
-    }
 
-    /**
-     * PHP4-style constructor
-     *
-     * @param array $config
-     */
-    function W3_Cache_File($config = array()) {
-        $this->__construct($config);
+        if (isset($config['flush_dir']))
+            $this->_flush_dir = $config['flush_dir'];
+        else {
+            if ($config['blog_id'] <= 0) {
+                // clear whole section if we operate on master cache
+                $this->_flush_dir = w3_cache_dir($config['section']);
+            } else
+                $this->_flush_dir = $this->_cache_dir;
+        }
+        if (isset($config['use_wp_hash']) && $config['use_wp_hash'] && function_exists('wp_hash'))
+            $this->_use_wp_hash = true;
     }
 
     /**
@@ -74,11 +91,12 @@ class W3_Cache_File extends W3_Cache_Base {
      * @param string $key
      * @param mixed $var
      * @param integer $expire
+     * @param string $group Used to differentiate between groups of cache values
      * @return boolean
      */
-    function add($key, &$var, $expire = 0) {
-        if ($this->get($key) === false) {
-            return $this->set($key, $var, $expire);
+    function add($key, &$var, $expire = 0, $group = '') {
+        if ($this->get($key, $group) === false) {
+            return $this->set($key, $var, $expire, $group);
         }
 
         return false;
@@ -90,87 +108,100 @@ class W3_Cache_File extends W3_Cache_Base {
      * @param string $key
      * @param mixed $var
      * @param integer $expire
+     * @param string $group Used to differentiate between groups of cache values
      * @return boolean
      */
-    function set($key, &$var, $expire = 0) {
+    function set($key, &$var, $expire = 0, $group = '') {
+        $key = $this->get_item_key($key);
+
         $sub_path = $this->_get_path($key);
-        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . $sub_path;
+        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . ($group ? $group . DIRECTORY_SEPARATOR : '') . $sub_path;
 
         $sub_dir = dirname($sub_path);
         $dir = dirname($path);
 
-        if ((@is_dir($dir) || w3_mkdir($sub_dir, 0777, $this->_cache_dir))) {
-            $fp = @fopen($path, 'wb');
-
-            if ($fp) {
-                if ($this->_locking) {
-                    @flock($fp, LOCK_EX);
-                }
-                @fputs($fp, '<?php /* ');
-                @fputs($fp, pack('L', $expire));
-                @fputs($fp, @serialize($var));
-                @fclose($fp);
-
-                if ($this->_locking) {
-                    @flock($fp, LOCK_UN);
-                }
-
-                return true;
-            }
+        if (!@is_dir($dir)) {
+            if (!w3_mkdir_from($dir, W3TC_CACHE_DIR))
+                return false;
         }
 
-        return false;
+        $fp = @fopen($path, 'wb');
+
+        if (!$fp)
+            return false;
+        
+        if ($this->_locking)
+            @flock($fp, LOCK_EX);
+
+        if ($expire <= 0 || $expire > W3TC_CACHE_FILE_EXPIRE_MAX)
+            $expire = W3TC_CACHE_FILE_EXPIRE_MAX;
+
+        $expires_at = time() + $expire;
+        @fputs($fp, pack('L', $expires_at));
+        @fputs($fp, '<?php exit; ?>');
+        @fputs($fp, @serialize($var));
+        @fclose($fp);
+
+        if ($this->_locking)
+            @flock($fp, LOCK_UN);
+
+        return true;
     }
 
     /**
      * Returns data
      *
      * @param string $key
+     * @param string $group Used to differentiate between groups of cache values
      * @return mixed
      */
-    function get($key) {
-        $var = false;
-        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . $this->_get_path($key);
+    function get($key, $group = '') {
+        $key = $this->get_item_key($key);
 
-        if (is_readable($path)) {
-            $ftime = @filemtime($path);
+        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . ($group ? $group . DIRECTORY_SEPARATOR : '') . $this->_get_path($key);
+        if (!is_readable($path))
+            return null;
 
-            if ($ftime) {
-                $fp = @fopen($path, 'rb');
+        $fp = @fopen($path, 'rb');
+        if (!$fp)
+            return null;
 
-                if ($fp) {
-                    if ($this->_locking) {
-                        @flock($fp, LOCK_SH);
+        if ($this->_locking)
+            @flock($fp, LOCK_SH);
+
+        $expires_at = @fread($fp, 4);
+        $data_unserialized = null;
+
+        if ($expires_at !== false) {
+            list(, $expires_at) = @unpack('L', $expires_at);
+
+            if (time() > $expires_at) {
+                if ($this->_use_expired_data) {
+                    // update expiration so other threads will use old data
+                    $fp2 = @fopen($path, 'cb');
+
+                    if ($fp2) {
+                        @fputs($fp2, pack('L', time() + 30));
+                        @fclose($fp2);
                     }
-
-                    $expires = @fread($fp, 4);
-
-                    if ($expires !== false) {
-                        list(, $expire) = @unpack('L', $expires);
-                        $expire = ($expire && $expire <= W3TC_CACHE_FILE_EXPIRE_MAX ? $expire : W3TC_CACHE_FILE_EXPIRE_MAX);
-
-                        if ($ftime > time() - $expire) {
-                            $data = '';
-
-                            while (!@feof($fp)) {
-                                $data .= @fread($fp, 4096);
-                            }
-                            
-                            $var = substr($data, 9);
-                            $var = @unserialize($data);
-                        }
-                    }
-
-                    if ($this->_locking) {
-                        @flock($fp, LOCK_UN);
-                    }
-
-                    @fclose($fp);
                 }
+            } else {
+                $data = '';
+
+                while (!@feof($fp)) {
+                    $data .= @fread($fp, 4096);
+                }
+                $data = substr($data, 14);
+                $data_unserialized = @unserialize($data);
             }
         }
 
-        return $var;
+        if ($this->_locking)
+            @flock($fp, LOCK_UN);
+
+        @fclose($fp);
+
+        return $data_unserialized;
     }
 
     /**
@@ -179,11 +210,12 @@ class W3_Cache_File extends W3_Cache_Base {
      * @param string $key
      * @param mixed $var
      * @param integer $expire
+     * @param string $group Used to differentiate between groups of cache values
      * @return boolean
      */
-    function replace($key, &$var, $expire = 0) {
-        if ($this->get($key) !== false) {
-            return $this->set($key, $var, $expire);
+    function replace($key, &$var, $expire = 0, $group = '') {
+        if ($this->get($key, $group) !== false) {
+            return $this->set($key, $var, $expire, $group);
         }
 
         return false;
@@ -193,36 +225,58 @@ class W3_Cache_File extends W3_Cache_Base {
      * Deletes data
      *
      * @param string $key
+     * @param string $group Used to differentiate between groups of cache values
      * @return boolean
      */
-    function delete($key) {
-        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . $this->_get_path($key);
+    function delete($key, $group = '') {
+        $key = $this->get_item_key($key);
 
-        if (file_exists($path)) {
-            return @unlink($path);
+        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . ($group ? $group . DIRECTORY_SEPARATOR : '') . $this->_get_path($key);
+
+        if (!file_exists($path))
+            return true;
+
+        if ($this->_use_expired_data) {
+            $fp = @fopen($path, 'cb');
+
+            if ($fp) {
+                if ($this->_locking)
+                    @flock($fp, LOCK_EX);
+
+                @fputs($fp, pack('L', 0));   // make it expired
+                @fclose($fp);
+
+                if ($this->_locking)
+                    @flock($fp, LOCK_UN);
+                return true;
+            }
+
         }
 
-        return false;
+        return @unlink($path);
     }
 
     /**
      * Flushes all data
      *
+     * @param string $group Used to differentiate between groups of cache values
      * @return boolean
      */
-    function flush() {
+    function flush($group = '') {
         @set_time_limit($this->_flush_timelimit);
-
-        return w3_emptydir($this->_cache_dir, $this->_exclude);
+        $flush_dir = $group ? $this->_cache_dir . DIRECTORY_SEPARATOR . $group . DIRECTORY_SEPARATOR : $this->_flush_dir;
+        return w3_emptydir($flush_dir, $this->_exclude);
     }
 
     /**
      * Returns modification time of cache file
      *
      * @param integer $key
+     * @param string $group Used to differentiate between groups of cache values
+     * @return boolean|string
      */
-    function mtime($key) {
-        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . $this->_get_path($key);
+    function mtime($key, $group = '') {
+        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . ($group ? $group . DIRECTORY_SEPARATOR : '') . $this->_get_path($key);
 
         if (file_exists($path)) {
             return @filemtime($path);
@@ -238,10 +292,12 @@ class W3_Cache_File extends W3_Cache_Base {
      * @return string
      */
     function _get_path($key) {
-        if (function_exists('wp_hash') && $this->use_wp_hash)
+        if ($this->_use_wp_hash)
             $hash = wp_hash($key);
         else
             $hash = md5($key);
+
+        $hash = md5($key);
         $path = sprintf('%s/%s/%s/%s.php', substr($hash, 0, 3), substr($hash, 3, 3), substr($hash, 6, 3), $hash);
 
         return $path;

@@ -1,7 +1,4 @@
 <?php if (!defined('W3TC')) die(); ?>
-<input type="hidden" name="minify.yuijs.options.nomunge" value="0" />
-<input type="hidden" name="minify.yuijs.options.preserve-semi" value="0" />
-<input type="hidden" name="minify.yuijs.options.disable-optimizations" value="0" />
-<label><input class="js_enabled" type="checkbox" name="minify.yuijs.options.nomunge" value="1"<?php checked($this->_config->get_boolean('minify.yuijs.options.nomunge'), true); ?> /> Minify only, do not obfuscate local symbols</label><br />
-<label><input class="js_enabled" type="checkbox" name="minify.yuijs.options.preserve-semi" value="1"<?php checked($this->_config->get_boolean('minify.yuijs.options.preserve-semi'), true); ?> /> Preserve unnecessary semicolons</label><br />
-<label><input class="js_enabled" type="checkbox" name="minify.yuijs.options.disable-optimizations" value="1"<?php checked($this->_config->get_boolean('minify.yuijs.options.disable-optimizations'), true); ?> /> Disable all the built-in micro optimizations</label><br />
+<?php $this->checkbox('minify.yuijs.options.nomunge', false, 'js_') ?> Minify only, do not obfuscate local symbols</label><br />
+<?php $this->checkbox('minify.yuijs.options.preserve-semi', false, 'js_') ?> Preserve unnecessary semicolons</label><br />
+<?php $this->checkbox('minify.yuijs.options.disable-optimizations', false, 'js_') ?> Disable all the built-in micro optimizations</label><br />

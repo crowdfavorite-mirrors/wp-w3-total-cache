@@ -7,8 +7,8 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-require_once W3TC_INC_DIR . '/functions/file.php';
-require_once W3TC_LIB_W3_DIR . '/Cache/File.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+w3_require_once(W3TC_LIB_W3_DIR . '/Cache/File.php');
 
 /**
  * Class W3_Cache_File_Generic
@@ -37,48 +37,59 @@ class W3_Cache_File_Generic extends W3_Cache_File {
     }
 
     /**
-     * PHP4-style constructor
-     *
-     * @param array $config
-     */
-    function W3_Cache_File_Generic($config = array()) {
-        $this->__construct($config);
-    }
-
-    /**
      * Sets data
      *
      * @param string $key
      * @param string $var
+     * @param int $expire
      * @return boolean
      */
-    function set($key, $var) {
+    function set($key, $var, $expire = 0) {
+        $key = $this->get_item_key($key);
         $sub_path = $this->_get_path($key);
         $path = $this->_cache_dir . '/' . $sub_path;
 
         $sub_dir = dirname($sub_path);
         $dir = dirname($path);
 
-        if ((@is_dir($dir) || w3_mkdir($sub_dir, 0777, $this->_cache_dir))) {
-            $fp = @fopen($path, 'w');
-
-            if ($fp) {
-                if ($this->_locking) {
-                    @flock($fp, LOCK_EX);
-                }
-
-                @fputs($fp, $var);
-                @fclose($fp);
-
-                if ($this->_locking) {
-                    @flock($fp, LOCK_UN);
-                }
-
-                return true;
-            }
+        if (!@is_dir($dir)) {
+            if (!w3_mkdir_from($dir, W3TC_CACHE_DIR))
+                return false;
         }
 
-        return false;
+        $fp = @fopen($path, 'w');
+        if (!$fp)
+            return false;
+        
+        if ($this->_locking)
+            @flock($fp, LOCK_EX);
+
+        @fputs($fp, $var['content']);
+        @fclose($fp);
+
+        if ($this->_locking)
+            @flock($fp, LOCK_UN);
+
+        // some hostings create files with restrictive permissions
+        // not allowing apache to read it later
+        @chmod($path, 0644); 
+
+        $old_entry_path = $path . '.old';
+        @unlink($old_entry_path);
+
+        if (w3_is_apache() && isset($var['headers']) &&
+                isset($var['headers']['Content-Type']) &&
+                substr($var['headers']['Content-Type'], 0, 8) == 'text/xml') {
+            file_put_contents(dirname($path) . '/.htaccess',
+                "<IfModule mod_mime.c>\n" .
+                "    RemoveType .html_gzip\n" .
+                "    AddType text/xml .html_gzip\n" .
+                "    RemoveType .html\n" .
+                "    AddType text/xml .html\n".
+                "</IfModule>");
+        }
+
+        return true;
     }
 
     /**
@@ -88,36 +99,112 @@ class W3_Cache_File_Generic extends W3_Cache_File {
      * @return string
      */
     function get($key) {
+        $key = $this->get_item_key($key);
         $var = false;
         $path = $this->_cache_dir . '/' . $this->_get_path($key);
 
-        if (is_readable($path)) {
-            $ftime = @filemtime($path);
+        $data = $this->_read($path);
+        if ($data != null)
+            return $data;
 
-            if ($ftime && $ftime > (time() - $this->_expire)) {
-                $fp = @fopen($path, 'r');
+        $path_old = $path . '.old';
+        $too_old_time = time() - 30;
 
-                if ($fp) {
-                    if ($this->_locking) {
-                        @flock($fp, LOCK_SH);
-                    }
-
-                    $var = '';
-
-                    while (!@feof($fp)) {
-                        $var .= @fread($fp, 4096);
-                    }
-
-                    @fclose($fp);
-
-                    if ($this->_locking) {
-                        @flock($fp, LOCK_UN);
-                    }
-                }
+        $file_time = @filemtime($path_old);
+        if ($file_time) {
+            if ($file_time > $too_old_time) {
+                // return old data
+                return $this->_read($path_old);
             }
+
+            @touch($path_old);
         }
 
-        return $var;
+        return null;
+    }
+
+    /**
+     * Reads file
+     *
+     * @param string $path
+     * @return array
+     */
+    private function _read($path) {
+        if (!is_readable($path))
+            return null;
+
+        $fp = @fopen($path, 'r');
+        if (!$fp)
+            return null;
+
+        if ($this->_locking)
+            @flock($fp, LOCK_SH);
+
+        $var = '';
+
+        while (!@feof($fp))
+            $var .= @fread($fp, 4096);
+
+        @fclose($fp);
+
+        if ($this->_locking)
+            @flock($fp, LOCK_UN);
+
+        return array(
+            '404' => false,
+            'headers' => array(),
+            'time' => null,
+            'content' => $var
+        );
+    }
+
+    /**
+     * Deletes data
+     *
+     * @param string $key
+     * @return boolean
+     */
+    function delete($key) {
+        $key = $this->get_item_key($key);
+        $path = $this->_cache_dir . DIRECTORY_SEPARATOR . $this->_get_path($key);
+
+        if (!file_exists($path))
+          return true;
+
+        $old_entry_path = $path . '.old';
+        if (@rename($path, $old_entry_path))
+            return true;
+
+        // if we can delete old entry - do second attempt to store in old-entry file
+        if (@unlink($old_entry_path)) {
+          if (@rename($path, $old_entry_path))
+            return true;
+        }
+
+        return @unlink($path);
+    }
+
+    /**
+     * Flushes all data
+     *
+     * @param string $group Used to differentiate between groups of cache values
+     * @return boolean
+     */
+    function flush($group = '') {
+        if ($group == 'sitemaps') {
+            $config = w3_instance('W3_Config');
+            $sitemap_regex = $config->get_string('pgcache.purge.sitemap_regex');
+            $this->_flush_based_on_regex($sitemap_regex);
+        } else {
+            w3_require_once(W3TC_LIB_W3_DIR . '/Cache/File/Cleaner/Generic.php');
+            $c = new W3_Cache_File_Cleaner_Generic(array(
+                'cache_dir' => $this->_flush_dir,
+                'exclude' => $this->_exclude,
+                'clean_timelimit' => $this->_flush_timelimit
+            ));
+
+            $c->clean();
+        }
     }
 
     /**
@@ -128,5 +215,43 @@ class W3_Cache_File_Generic extends W3_Cache_File {
      */
     function _get_path($key) {
         return $key;
+    }
+
+    function get_item_key($key) {
+        /**
+         * Allow to modify page key by W3TC plugins
+         */
+        $key = w3tc_do_action('w3tc_' . $this->_module . '_cache_key', $key);
+        return $key;
+    }
+
+
+    /**
+     * Flush cache based on regex
+     * @param string $regex
+     */
+    private function _flush_based_on_regex($regex) {
+        if (w3_is_multisite() && !w3_is_subdomain_install()) {
+            $domain = w3_get_home_url();
+            $parsed = parse_url($domain);
+            $host = $parsed['host'];
+            $path = trim($parsed['path'], '/');
+            $flush_dir = W3TC_CACHE_PAGE_ENHANCED_DIR . '/' . $host . '/' . $path;
+        } else
+            $flush_dir = W3TC_CACHE_PAGE_ENHANCED_DIR . '/' . w3_get_domain(w3_get_host());
+
+        $dir = @opendir($flush_dir);
+        if ($dir) {
+            while (($entry = @readdir($dir)) !== false) {
+                if ($entry == '.' || $entry == '..') {
+                    continue;
+                }
+                if (preg_match('/' . $regex . '/', basename($entry))) {
+                    w3_rmdir($flush_dir . DIRECTORY_SEPARATOR . $entry);
+                }
+            }
+
+            @closedir($dir);
+        }
     }
 }

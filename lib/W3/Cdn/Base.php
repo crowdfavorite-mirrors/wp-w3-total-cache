@@ -6,6 +6,9 @@
 define('W3TC_CDN_RESULT_HALT', -1);
 define('W3TC_CDN_RESULT_ERROR', 0);
 define('W3TC_CDN_RESULT_OK', 1);
+define('W3TC_CDN_HEADER_NONE', 'none');
+define('W3TC_CDN_HEADER_UPLOADABLE', 'uploadable');
+define('W3TC_CDN_HEADER_MIRRORING', 'mirroring');
 
 /**
  * Class W3_Cdn_Base
@@ -52,18 +55,9 @@ class W3_Cdn_Base {
     }
 
     /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_Base($config = array()) {
-        $this->__construct($config);
-    }
-
-    /**
      * Upload files to CDN
      *
-     * @param array $files
+     * @param array $files takes array consisting of array(array('local_path'=>'', 'remote_path'=>''))
      * @param array $results
      * @param boolean $force_rewrite
      * @return boolean
@@ -96,6 +90,17 @@ class W3_Cdn_Base {
      */
     function purge($files, &$results) {
         return $this->upload($files, $results, true);
+    }
+
+    /**
+     * Purge CDN completely
+     * @param $results
+     * @return bool
+     */
+    function purge_all(&$results) {
+        $results = $this->_get_results(array(), W3TC_CDN_RESULT_HALT, 'Not implemented.');
+
+        return false;
     }
 
     /**
@@ -288,7 +293,15 @@ class W3_Cdn_Base {
     function _get_results($files, $result = W3TC_CDN_RESULT_OK, $error = 'OK') {
         $results = array();
 
-        foreach ($files as $local_path => $remote_path) {
+        foreach ($files as $key => $file) {
+            if (is_array($file)) {
+                $local_path = $file['local_path'];
+                $remote_path = $file['remote_path'];
+            } else {
+                $local_path = $key;
+                $remote_path = $file;
+            }
+
             $results[] = $this->_get_result($local_path, $remote_path, $result, $error);
         }
 
@@ -336,31 +349,34 @@ class W3_Cdn_Base {
     /**
      * Returns headers for file
      *
-     * @param string $file
+     * @param array $file CDN file array
      * @return array
      */
     function _get_headers($file) {
-        require_once W3TC_INC_DIR . '/functions/mime.php';
-
-        $mime_type = w3_get_mime_type($file);
+        w3_require_once(W3TC_INC_DIR . '/functions/mime.php');
+        $local_path = $file['local_path'];
+        $mime_type = w3_get_mime_type($local_path);
         $last_modified = time();
+
+        $link = $file['original_url'];
 
         $headers = array(
             'Content-Type' => $mime_type,
             'Last-Modified' => w3_http_date($last_modified),
-            'Access-Control-Allow-Origin' => '*'
+            'Access-Control-Allow-Origin' => '*',
+            'Link' => '<' . $link  .'>; rel="canonical"'
         );
 
         if (isset($this->cache_config[$mime_type])) {
             if ($this->cache_config[$mime_type]['etag']) {
-                $headers['Etag'] = @md5_file($file);
+                $headers['Etag'] = @md5_file($local_path);
             }
 
             if ($this->cache_config[$mime_type]['w3tc']) {
                 $headers['X-Powered-By'] = W3TC_POWERED_BY;
             }
 
-            if ($this->cache_config[$mime_type]['lifetime']) {
+            if ($this->cache_config[$mime_type]['expires']) {
                 $headers['Expires'] = w3_http_date(time() + $this->cache_config[$mime_type]['lifetime']);
             }
 
@@ -369,6 +385,13 @@ class W3_Cdn_Base {
                     $headers = array_merge($headers, array(
                         'Pragma' => 'public',
                         'Cache-Control' => 'public'
+                    ));
+                    break;
+
+                case 'cache_public_maxage':
+                    $headers = array_merge($headers, array(
+                        'Pragma' => 'public',
+                        'Cache-Control' => ($this->cache_config[$mime_type]['expires'] ? '' : 'max-age=' . $this->cache_config[$mime_type]['lifetime'] .', ') . 'public'
                     ));
                     break;
 
@@ -389,7 +412,7 @@ class W3_Cdn_Base {
                 case 'cache_maxage':
                     $headers = array_merge($headers, array(
                         'Pragma' => 'public',
-                        'Cache-Control' => 'max-age=' . $this->cache_config[$mime_type]['lifetime'] . ', public, must-revalidate, proxy-revalidate'
+                        'Cache-Control' => ($this->cache_config[$mime_type]['expires'] ? '' : 'max-age=' . $this->cache_config[$mime_type]['lifetime'] .', ') . 'public, must-revalidate, proxy-revalidate'
                     ));
                     break;
 
@@ -489,7 +512,7 @@ class W3_Cdn_Base {
      * @return boolean
      */
     function _is_js($path) {
-        return preg_match('~[a-z0-9\-_]+\.include(-nb)?\.[0-9]+\.js$~', $path);
+        return preg_match('~[a-z0-9\-_]+\.include\.[a-z0-9]+\.js$~', $path);
     }
 
     /**
@@ -499,7 +522,7 @@ class W3_Cdn_Base {
      * @return boolean
      */
     function _is_js_body($path) {
-        return preg_match('~[a-z0-9\-_]+\.include-body(-nb)?\.[0-9]+\.js$~', $path);
+        return preg_match('~[a-z0-9\-_]+\.include-body\.[a-z0-9]+\.js$~', $path);
     }
 
     /**
@@ -509,7 +532,7 @@ class W3_Cdn_Base {
      * @return boolean
      */
     function _is_js_footer($path) {
-        return preg_match('~[a-z0-9\-_]+\.include-footer(-nb)?\.[0-9]+\.js$~', $path);
+        return preg_match('~[a-z0-9\-_]+\.include-footer\.[a-z0-9]+\.js$~', $path);
     }
 
     /**
@@ -566,6 +589,9 @@ class W3_Cdn_Base {
             case 'disabled':
                 $scheme = 'http';
                 break;
+            case 'rejected':
+                $scheme = 'http';
+                break;
         }
 
         return $scheme;
@@ -582,7 +608,9 @@ class W3_Cdn_Base {
     function _log($local_path, $remote_path, $error) {
         $data = sprintf("[%s] [%s => %s] %s\n", date('r'), $local_path, $remote_path, $error);
 
-        return @file_put_contents(W3TC_CDN_LOG_FILE, $data, FILE_APPEND);
+        $filename = w3_debug_log('cdn');
+
+        return @file_put_contents($filename, $data, FILE_APPEND);
     }
 
     /**
@@ -626,5 +654,29 @@ class W3_Cdn_Base {
      */
     function _restore_error_handler() {
         restore_error_handler();
+    }
+
+    /**
+     * If CDN suppost path of type folder/*
+     * @return bool
+     */
+    function supports_folder_asterisk() {
+        return false;
+    }
+
+    /**
+     * How and if headers should be set
+     * @return string W3TC_CDN_HEADER_NONE, W3TC_CDN_HEADER_UPLOADABLE, W3TC_CDN_HEADER_MIRRORING
+     */
+    function headers_support() {
+        return W3TC_CDN_HEADER_NONE;
+    }
+
+    /**
+     * If the CDN supports fullpage mirroring
+     * @return bool
+     */
+    function supports_full_page_mirroring() {
+        return false;
     }
 }

@@ -23,7 +23,7 @@
             <input type="hidden" name="payment" value="<?php echo $payment; ?>" />
             <?php echo $this->nonce_field('w3tc'); ?>
             <input type="submit" name="w3tc_support_request" class="button-primary" value="Submit request" />
-            <input id="support_cancel" class="{nonce: '<?php echo wp_create_nonce('w3tc'); ?>'}" type="button" value="Cancel" class="button-primary" />
+            <input id="support_cancel" class="button-secondary {nonce: '<?php echo wp_create_nonce('w3tc'); ?>'}" type="button" value="Cancel" />
         </p>
     </div>
 </form>

@@ -8,10 +8,10 @@ if (!defined('ABSPATH')) {
 }
 
 if (!class_exists('S3')) {
-    require_once W3TC_LIB_DIR . '/S3.php';
+    w3_require_once(W3TC_LIB_DIR . '/S3.php');
 }
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/Base.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/Base.php');
 
 /**
  * Class W3_Cdn_S3
@@ -41,12 +41,25 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
     }
 
     /**
-     * PHP4 Constructor
+     * Formats URL
      *
-     * @param array $config
+     * @param string $path
+     * @return string
      */
-    function W3_Cdn_S3($config = array()) {
-        $this->__construct($config);
+    function _format_url($path) {
+        $domain = $this->get_domain($path);
+
+        if ($domain) {
+            $scheme = $this->_get_scheme();
+
+            // it does not support '+', requires '%2B'
+            $path = str_replace('+', '%2B', $path);
+            $url = sprintf('%s://%s/%s', $scheme, $domain, $path);
+
+            return $url;
+        }
+
+        return false;
     }
 
     /**
@@ -74,7 +87,7 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
             return false;
         }
 
-        @$this->_s3 = & new S3($this->_config['key'], $this->_config['secret'], false);
+        $this->_s3 = new S3($this->_config['key'], $this->_config['secret'], false);
 
         return true;
     }
@@ -96,13 +109,15 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
-            $results[] = $this->_upload($local_path, $remote_path, $force_rewrite);
+        foreach ($files as $file) {
+            $local_path = $file['local_path'];
+            $remote_path = $file['remote_path'];
+
+            $results[] = $this->_upload($file, $force_rewrite);
 
             if ($this->_config['compression'] && $this->_may_gzip($remote_path)) {
-                $remote_path_gzip = $remote_path . $this->_gzip_extension;
-
-                $results[] = $this->_upload_gzip($local_path, $remote_path_gzip, $force_rewrite);
+                $file['remote_path_gzip'] = $remote_path . $this->_gzip_extension;
+                $results[] = $this->_upload_gzip($file, $force_rewrite);
             }
         }
 
@@ -112,12 +127,14 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
     /**
      * Uploads single file to S3
      *
-     * @param string $local_path
-     * @param string $remote_path
+     * @param array CDN file array
      * @param boolean $force_rewrite
      * @return array
      */
-    function _upload($local_path, $remote_path, $force_rewrite = false) {
+    function _upload($file, $force_rewrite = false) {
+        $local_path = $file['local_path'];
+        $remote_path = $file['remote_path'];
+
         if (!file_exists($local_path)) {
             return $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, 'Source file not found.');
         }
@@ -137,7 +154,7 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
             }
         }
 
-        $headers = $this->_get_headers($local_path);
+        $headers = $this->_get_headers($file);
 
         $this->_set_error_handler();
         $result = @$this->_s3->putObjectFile($local_path, $this->_config['bucket'], $remote_path, S3::ACL_PUBLIC_READ, array(), $headers);
@@ -158,7 +175,10 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
      * @param boolean $force_rewrite
      * @return array
      */
-    function _upload_gzip($local_path, $remote_path, $force_rewrite = false) {
+    function _upload_gzip($file, $force_rewrite = false) {
+        $local_path = $file['local_path'];
+        $remote_path = $file['remote_path_gzip'];
+
         if (!function_exists('gzencode')) {
             return $this->_get_result($local_path, $remote_path, W3TC_CDN_RESULT_ERROR, "GZIP library doesn't exist.");
         }
@@ -190,7 +210,7 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
             }
         }
 
-        $headers = $this->_get_headers($local_path);
+        $headers = $this->_get_headers($file);
         $headers = array_merge($headers, array(
             'Vary' => 'Accept-Encoding',
             'Content-Encoding' => 'gzip'
@@ -223,7 +243,10 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
             return false;
         }
 
-        foreach ($files as $local_path => $remote_path) {
+        foreach ($files as $file) {
+            $local_path = $file['local_path'];
+            $remote_path = $file['remote_path'];
+
             $this->_set_error_handler();
             $result = @$this->_s3->deleteObject($this->_config['bucket'], $remote_path);
             $this->_restore_error_handler();
@@ -388,7 +411,7 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
         }
 
         if (empty($this->_config['bucket_acl'])) {
-            $this->_config['bucket_acl'] = S3::ACL_PUBLIC_READ;
+            $this->_config['bucket_acl'] = S3::ACL_PRIVATE;
         }
 
         if (!isset($this->_config['bucket_location'])) {
@@ -406,5 +429,13 @@ class W3_Cdn_S3 extends W3_Cdn_Base {
         $this->_restore_error_handler();
 
         return true;
+    }
+
+    /**
+     * How and if headers should be set
+     * @return string W3TC_CDN_HEADER_NONE, W3TC_CDN_HEADER_UPLOADABLE, W3TC_CDN_HEADER_MIRRORING
+     */
+    function headers_support() {
+        return W3TC_CDN_HEADER_UPLOADABLE;
     }
 }

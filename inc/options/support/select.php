@@ -1,6 +1,6 @@
 <?php if (!defined('W3TC')) die(); ?>
 <div class="metabox-holder">
-    <?php echo $this->postbox_header('Choose request type'); ?>
+    <?php echo $this->postbox_header('Choose Request Type'); ?>
     <table class="form-table">
         <tr>
             <th><label for="support_request_type">Request type:</label></th>

@@ -65,7 +65,7 @@ function w3tc_referrer_groups_clear() {
 }
 
 function w3tc_minify_js_file_add(theme, template, location, file) {
-    var append = jQuery('<li><table><tr><th>&nbsp;</th><th>File URI:</th><th>Template:</th><th colspan="3">Embed Location:</th></tr><tr><td>' + (jQuery('#js_files li').size() + 1) + '.</td><td><input class="js_enabled" type="text" name="js_files[' + theme + '][' + template + '][' + location + '][]" value="" size="70" \/></td><td><select class="js_file_template js_enabled"></select></td><td><select class="js_file_location js_enabled"><optgroup label="Blocking:"><option value="include">Embed in &lt;head&gt;</option><option value="include-body">Embed after &lt;body&gt;</option><option value="include-footer">Embed before &lt;/body&gt;</option></optgroup><optgroup label="Non-Blocking:"><option value="include-nb">Embed in &lt;head&gt;</option><option value="include-body-nb">Embed after &lt;body&gt;</option><option value="include-footer-nb">Embed before &lt;/body&gt;</option></optgroup></select></td><td><input class="js_file_delete js_enabled button" type="button" value="Delete" /> <input class="js_file_verify js_enabled button" type="button" value="Verify URI" /></td></tr></table><\/li>');
+    var append = jQuery('<li><table><tr><th>&nbsp;</th><th>File URI:</th><th>Template:</th><th colspan="3">Embed Location:</th></tr><tr><td>' + (jQuery('#js_files li').size() + 1) + '.</td><td><input class="js_enabled" type="text" name="js_files[' + theme + '][' + template + '][' + location + '][]" value="" size="70" \/></td><td><select class="js_file_template js_enabled"></select></td><td><select class="js_file_location js_enabled"><option value="include">Embed in &lt;head&gt;</option><option value="include-body">Embed after &lt;body&gt;</option><option value="include-footer">Embed before &lt;/body&gt;</option></select></td><td><input class="js_file_delete js_enabled button" type="button" value="Delete" /> <input class="js_file_verify js_enabled button" type="button" value="Verify URI" /></td></tr></table><\/li>');
     append.find('input:text').val(file);
     var select = append.find('.js_file_template');
     for (var i in minify_templates[theme]) {
@@ -176,6 +176,7 @@ function w3tc_cdn_cnames_assign() {
 }
 
 function w3tc_cloudflare_api_request(action, value, nonce) {
+
     var email = jQuery('#cloudflare_email');
     var key = jQuery('#cloudflare_key');
     var zone = jQuery('#cloudflare_zone');
@@ -252,6 +253,40 @@ function w3tc_toggle(name, check) {
     });
 }
 
+function w3tc_toggle2(name, dependent_ids) {
+    var id = '#' + name, dependants = '';
+    for (n = 0; n < dependent_ids.length; n++)
+        dependants += (n > 0 ? ',' : '') + '#' + dependent_ids[n];
+    
+    jQuery(dependants).click(function() {
+        var total_checked = true;
+
+        jQuery(dependants).each(function() {
+            var current_checked = jQuery(this).is(':checked');
+
+            if (!current_checked)
+                total_checked = false;
+        });
+
+        if (total_checked) {
+            jQuery(id).attr('checked', 'checked');
+        } else {
+            jQuery(id).removeAttr('checked');
+        }
+    });
+
+    jQuery(id).click(function() {
+        var checked = jQuery(this).is(':checked');
+        jQuery(dependants).each(function() {
+            if (checked) {
+                jQuery(this).attr('checked', 'checked');
+            } else {
+                jQuery(this).removeAttr('checked');
+            }
+        });
+    });
+}
+
 function w3tc_beforeupload_bind() {
     jQuery(window).bind('beforeunload', w3tc_beforeunload);
 }
@@ -261,46 +296,170 @@ function w3tc_beforeupload_unbind() {
 }
 
 function w3tc_beforeunload() {
-    return 'Are you sure you wish to navigate away from this page without saving your changes?';
+    return 'Navigate away from this page without saving your changes?';
 }
+
 
 jQuery(function() {
     // general page
     w3tc_toggle('enabled');
 
+    jQuery('#w3tc_general').submit(function(event) {
+        var el = jQuery("[was_clicked=yes]").get(0);
+        if (el.id == 'flush_all' && jQuery('#cloudflare_enabled').is(':checked')) {
+            if (!confirm('Purging your site\'s CloudFlare cache will remove all CloudFlare cache files. It may take up to 48 hours for the CloudFlare cache to completely rebuild on CloudFlare\'s global network. Are you sure you want to purge CloudFlare the cache? Clicking cancel will cancel "empty all caches".')) {
+                event.preventDefault();
+            }
+        }
+        jQuery(el).removeAttr("was_clicked");
+    });
+
+    jQuery('#w3tc_general [type=submit]').bind('click', function(e){
+        jQuery(this).attr('was_clicked','yes');
+    });
+
     jQuery('.button-tweet').live('click', function() {
-        window.open('http://twitter.com/?status=' + encodeURIComponent('YES! I optimized my #wordpress site\'s #performance using the W3 Total Cache #plugin by @w3edge. Check it out! http://j.mp/A69xX'), '_blank');
+        window.open('http://twitter.com/?status=' + encodeURIComponent('YES! I optimized my #wordpress site\'s #performance using the W3 Total Cache #WPO #plugin by @w3edge. Check it out! http://j.mp/A69xX'), '_blank');
+    });
+
+    jQuery('#common_support').change(function() {
+        var where= jQuery(this).val();
+        jQuery.post(ajaxurl,{action:'w3tc_link_support', w3tc_common_support_us:where}, function(data) {
+            alert(data);
+        });
     });
 
     jQuery('.button-rating').live('click', function() {
-        window.open('http://wordpress.org/extend/plugins/w3-total-cache/', '_blank');
+        window.open('http://wordpress.org/support/view/plugin-reviews/w3-total-cache?rate=5#postform', '_blank');
+    });
+    jQuery('#w3tc_technical_info').hide();
+    jQuery('#w3tc_read_technical_info').click(function() {
+        jQuery('#w3tc_technical_info').toggle();
+    });
+
+    jQuery('#newrelic_verify_api_key').click(function() {
+        var api_key = jQuery('#newrelic_api_key').val();
+
+        if (!api_key) {
+            alert('Please enter an API key and try again.');
+            return;
+        }
+        var params = {
+            action: 'w3tc_verify_newrelic_api_key',
+            api_key: api_key
+        };
+
+        jQuery.get(ajaxurl, params, function(data) {
+            if (data) {
+                jQuery('#newrelic_account_id').val(data);
+                alert('API Key verified');
+            }else {
+                alert('The API key could not be verified. Please check it and try again.');
+            }
+        });
+    });
+
+    jQuery('#newrelic_retrieve_applications').click(function() {
+        var api_key = jQuery('#newrelic_api_key').val();
+        var account_id = jQuery('#newrelic_account_id').val();
+        if (!api_key) {
+            alert('Please enter an API key.');
+            return;
+        }
+
+        var params = {
+            action: 'w3tc_get_newrelic_applications',
+            api_key: api_key,
+            account_id: account_id
+        };
+
+        jQuery.getJSON(ajaxurl, params, function(data) {
+            var app_id_select = jQuery('#newrelic_application_id_dropdown');
+            app_id_select.empty();
+            app_id_select
+                .append(jQuery("<option></option>")
+                .attr("value",'')
+                .text('-- Select Application --'));
+
+            jQuery.each(data, function(key, value) {
+                app_id_select
+                    .append(jQuery("<option></option>")
+                    .attr("value",key)
+                    .text(value));
+            });
+        });
+    });
+
+    jQuery("#manual").click(function () {
+        jQuery('#newrelic_application_name_textbox_div').show();
+        jQuery('#newrelic_application_id_dropdown_div').hide();
+    });
+
+    jQuery("#dropdown").click(function () {
+        jQuery('#newrelic_application_name_textbox_div').hide();
+        jQuery('#newrelic_application_id_dropdown_div').show();
+    });
+
+    jQuery("#newrelic_use_network_wide_id").change(function () {
+        var conf = jQuery('#newrelic_configuration_sealed');
+        if (this.checked)
+            conf.prop('checked', true).prop('disabled',true);
+        else if(!jQuery('#common_force_master').is(':checked'))
+            conf.prop('disabled', false);
+    });
+
+    // pagecache page
+    w3tc_input_enable('#pgcache_reject_roles input[type=checkbox]', jQuery('#pgcache_reject_logged_roles:checked').size());
+    jQuery('#pgcache_reject_logged_roles').live('click', function(){
+        w3tc_input_enable('#pgcache_reject_roles input[type=checkbox]', jQuery('#pgcache_reject_logged_roles:checked').size());
+    });
+
+    if(jQuery('#pgcache_cache_nginx_handle_xml').is('*'))
+        jQuery('#pgcache_cache_nginx_handle_xml').attr('checked',jQuery('#pgcache_cache_feed').is(':checked'));
+
+    jQuery('#pgcache_cache_feed').change(function(){
+        if(jQuery('#pgcache_cache_nginx_handle_xml').is('*'))
+            jQuery('#pgcache_cache_nginx_handle_xml').attr('checked',this.checked);
     });
 
     // browsercache page
-    w3tc_toggle('browsercache_expires');
-    w3tc_toggle('browsercache_cache_control');
-    w3tc_toggle('browsercache_etag');
-    w3tc_toggle('browsercache_w3tc');
-    w3tc_toggle('browsercache_compression');
-    w3tc_toggle('browsercache_replace');
+    w3tc_toggle2('browsercache_last_modified',
+        ['browsercache_cssjs_last_modified', 'browsercache_html_last_modified',
+            'browsercache_other_last_modified']);
+    w3tc_toggle2('browsercache_expires',
+        ['browsercache_cssjs_expires', 'browsercache_html_expires',
+            'browsercache_other_expires']);
+    w3tc_toggle2('browsercache_cache_control',
+        ['browsercache_cssjs_cache_control', 'browsercache_html_cache_control',
+            'browsercache_other_cache_control']);
+    w3tc_toggle2('browsercache_etag',
+        ['browsercache_cssjs_etag', 'browsercache_html_etag', 'browsercache_other_etag']);
+    w3tc_toggle2('browsercache_w3tc',
+        ['browsercache.cssjs_w3tc', 'browsercache.html_w3tc', 'browsercache.other_w3tc']);
+    w3tc_toggle2('browsercache_compression',
+        ['browsercache_cssjs_compression', 'browsercache_html_compression', 'browsercache_other_compression']);
+    w3tc_toggle2('browsercache_replace',
+        ['browsercache_cssjs_replace', 'browsercache_other_replace']);
+    w3tc_toggle2('browsercache_nocookies',
+        ['browsercache_cssjs_nocookies', 'browsercache_other_nocookies']);
 
     // minify page
-    w3tc_input_enable('.html_enabled', jQuery('#html_enabled:checked').size());
-    w3tc_input_enable('.js_enabled', jQuery('#js_enabled:checked').size());
-    w3tc_input_enable('.css_enabled', jQuery('#css_enabled:checked').size());
+    w3tc_input_enable('.html_enabled', jQuery('#minify_html_enable:checked').size());
+    w3tc_input_enable('.js_enabled', jQuery('#minify_js_enable:checked').size());
+    w3tc_input_enable('.css_enabled', jQuery('#minify_css_enable:checked').size());
 
     w3tc_minify_js_theme(jQuery('#js_themes').val());
     w3tc_minify_css_theme(jQuery('#css_themes').val());
 
-    jQuery('#html_enabled').click(function() {
+    jQuery('#minify_html_enable').click(function() {
         w3tc_input_enable('.html_enabled', this.checked);
     });
 
-    jQuery('#js_enabled').click(function() {
+    jQuery('#minify_js_enable').click(function() {
         w3tc_input_enable('.js_enabled', jQuery(this).is(':checked'));
     });
 
-    jQuery('#css_enabled').click(function() {
+    jQuery('#minify_css_enable').click(function() {
         w3tc_input_enable('.css_enabled', jQuery(this).is(':checked'));
     });
 
@@ -464,6 +623,11 @@ jQuery(function() {
         jQuery(this.rel).show();
     });
 
+    w3tc_input_enable('#cdn_reject_roles input[type=checkbox]', jQuery('#cdn_reject_logged_roles:checked').size());
+    jQuery('#cdn_reject_logged_roles').live('click', function() {
+        w3tc_input_enable('#cdn_reject_roles input[type=checkbox]', jQuery('#cdn_reject_logged_roles:checked').size());
+    });
+
     jQuery('#cdn_export_library').click(function() {
         w3tc_popup('admin.php?page=w3tc_cdn&w3tc_cdn_export_library&_wpnonce=' + jQuery(this).metadata().nonce, 'cdn_export_library');
     });
@@ -596,8 +760,9 @@ jQuery(function() {
             case 'netdna':
                 jQuery.extend(params, {
                     engine: 'netdna',
-                    'config[apiid]': jQuery('#cdn_netdna_apiid').val(),
-                    'config[apikey]': jQuery('#cdn_netdna_apikey').val()
+                    'config[alias]': jQuery('#cdn_netdna_alias').val(),
+                    'config[consumerkey]': jQuery('#cdn_netdna_consumerkey').val(),
+                    'config[consumersecret]': jQuery('#cdn_netdna_consumersecret').val()
                 });
 
                 if (cnames.length) {
@@ -626,12 +791,46 @@ jQuery(function() {
                     params['config[domain][]'] = cnames;
                 }
                 break;
+            case 'akamai':
+                var emails = [], emails_val = jQuery('#cdn_akamai_email_notification').val();
+
+                if (emails_val) {
+                    emails = emails_val.split(/[\r\n,;]+/);
+                }
+
+                jQuery.extend(params, {
+                    engine: 'akamai',
+                    'config[username]': jQuery('#cdn_akamai_username').val(),
+                    'config[password]': jQuery('#cdn_akamai_password').val(),
+                    'config[zone]': jQuery('#cdn_akamai_zone').val()
+                });
+
+                if (emails.length) {
+                    params['config[email_notification][]'] = emails;
+                }
+
+                if (cnames.length) {
+                    params['config[domain][]'] = cnames;
+                }
+                break;
 
             case 'edgecast':
                 jQuery.extend(params, {
                     engine: 'edgecast',
                     'config[account]': jQuery('#cdn_edgecast_account').val(),
                     'config[token]': jQuery('#cdn_edgecast_token').val()
+                });
+
+                if (cnames.length) {
+                    params['config[domain][]'] = cnames;
+                }
+                break;
+
+            case 'att':
+                jQuery.extend(params, {
+                    engine: 'att',
+                    'config[account]': jQuery('#cdn_att_account').val(),
+                    'config[token]': jQuery('#cdn_att_token').val()
                 });
 
                 if (cnames.length) {
@@ -646,7 +845,7 @@ jQuery(function() {
         status.addClass('w3tc-process');
         status.html('Testing...');
 
-        jQuery.post('admin.php?page=w3tc_general', params, function(data) {
+        jQuery.post('admin.php?page=w3tc_dashboard', params, function(data) {
             status.addClass(data.result ? 'w3tc-success' : 'w3tc-error');
             status.html(data.error);
         }, 'json');
@@ -745,7 +944,7 @@ jQuery(function() {
         status.addClass('w3tc-process');
         status.html('Creating...');
 
-        jQuery.post('admin.php?page=w3tc_general', params, function(data) {
+        jQuery.post('admin.php?page=w3tc_dashboard', params, function(data) {
             status.addClass(data.result ? 'w3tc-success' : 'w3tc-error');
             status.html(data.error);
 
@@ -768,7 +967,7 @@ jQuery(function() {
         status.removeClass('w3tc-success');
         status.addClass('w3tc-process');
         status.html('Testing...');
-        jQuery.post('admin.php?page=w3tc_general', {
+        jQuery.post('admin.php?page=w3tc_dashboard', {
             w3tc_test_memcached: 1,
             servers: jQuery('#memcached_servers').val(),
             _wpnonce: jQuery(this).metadata().nonce
@@ -818,7 +1017,7 @@ jQuery(function() {
         status.addClass('w3tc-process');
         status.html('Testing...');
 
-        jQuery.post('admin.php?page=w3tc_general', params, function(data) {
+        jQuery.post('admin.php?page=w3tc_dashboard', params, function(data) {
             status.addClass(data.result ? 'w3tc-success' : 'w3tc-error');
             status.html(data.error);
         }, 'json');
@@ -858,6 +1057,12 @@ jQuery(function() {
         });
 
         return ret;
+    });
+
+    // New relic page
+    w3tc_input_enable('#newrelic_accept_roles input[type=checkbox]', jQuery('#newrelic_accept_logged_roles:checked').size());
+    jQuery('#newrelic_accept_logged_roles').live('click', function() {
+        w3tc_input_enable('#newrelic_accept_roles input[type=checkbox]', jQuery('#newrelic_accept_logged_roles:checked').size());
     });
 
     // support tabs
@@ -1212,7 +1417,7 @@ jQuery(function() {
         jQuery('#mobile_groups').sortable({
             axis: 'y',
             stop: function() {
-                jQuery('#mobile_groups .mobile_group_number').each(function(index) {
+                jQuery('#mobile_groups').find('.mobile_group_number').each(function(index) {
                     jQuery(this).html((index + 1) + '.');
                 });
             }
@@ -1221,7 +1426,7 @@ jQuery(function() {
         jQuery('#referrer_groups').sortable({
             axis: 'y',
             stop: function() {
-                jQuery('#referrer_groups .referrer_group_number').each(function(index) {
+                jQuery('#referrer_groups').find('.referrer_group_number').each(function(index) {
                     jQuery(this).html((index + 1) + '.');
                 });
             }
@@ -1239,6 +1444,38 @@ jQuery(function() {
             rules.css('display', 'block');
             btn.val('hide code');
         }
+    });
+
+
+    // show hide missing files
+    jQuery('.w3tc-show-required-changes').click(function() {
+        var btn = jQuery(this), rules = jQuery('.w3tc-required-changes');
+
+        if (rules.is(':visible')) {
+            rules.css('display', 'none');
+            btn.val('View required changes');
+        } else {
+            rules.css('display', 'block');
+            btn.val('Hide required changes');
+        }
+    });
+
+    // show hide missing files
+    jQuery('.w3tc-show-technical-info').click(function() {
+        var btn = jQuery(this), info = jQuery('.w3tc-technical-info');
+
+        if (info.is(':visible')) {
+            info.css('display', 'none');
+            btn.val('Technical Information');
+        } else {
+            info.css('display', 'block');
+            btn.val('Hide technical information');
+        }
+    });
+
+    // add ignore class to the ftp form elements
+    jQuery('#ftp_upload_form').find('input').each(function() {
+        jQuery(this).addClass('w3tc-ignore-change');
     });
 
     // check for unsaved changes

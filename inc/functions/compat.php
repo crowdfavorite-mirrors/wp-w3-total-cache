@@ -19,46 +19,6 @@ if (!function_exists('file_put_contents')) {
     }
 }
 
-if (!function_exists('json_encode')) {
-    function json_encode($string) {
-        global $json;
-
-        if (!is_a($json, 'Services_JSON')) {
-            require_once W3TC_LIB_DIR . '/JSON.php';
-            $json = new Services_JSON();
-        }
-
-        return $json->encodeUnsafe($string);
-    }
-}
-
-if (!function_exists('json_decode')) {
-    function json_decode($string, $assoc_array = false) {
-        global $json;
-
-        if (!is_a($json, 'Services_JSON')) {
-            require_once W3TC_LIB_DIR . '/JSON.php';
-            $json = new Services_JSON();
-        }
-
-        $res = $json->decode($string);
-
-        if ($assoc_array) {
-            $res = _json_decode_object_helper($res);
-        }
-
-        return $res;
-    }
-
-    function _json_decode_object_helper($data) {
-        if (is_object($data)) {
-            $data = get_object_vars($data);
-        }
-
-        return (is_array($data) ? array_map(__FUNCTION__, $data) : $data);
-    }
-}
-
 if (!function_exists('fnmatch')) {
     define('FNM_PATHNAME', 1);
     define('FNM_NOESCAPE', 2);
@@ -101,4 +61,52 @@ if (!function_exists('fnmatch')) {
 
         return (boolean) preg_match($pattern, $string);
     }
+}
+function w3tc_get_theme($themename) {
+    global $wp_version;
+    if (version_compare($wp_version,'3.4', '<'))
+        return get_theme($themename);
+
+    $wp_themes = w3tc_get_themes();
+
+
+    if ( is_array( $wp_themes ) && array_key_exists( $themename, $wp_themes ) )
+        return $wp_themes[ $themename ];
+    return array();
+}
+function w3tc_get_current_theme_name() {
+    global $wp_version;
+    if (version_compare($wp_version,'3.4', '>='))
+        return wp_get_theme()->get('Name');
+    return get_current_theme();
+}
+
+function w3tc_get_current_theme() {
+    global $wp_version;
+    if (version_compare($wp_version,'3.4', '>='))
+        return wp_get_theme();
+    return get_theme(get_current_theme());
+}
+
+function w3tc_get_themes() {
+    global $wp_version;
+    if (version_compare($wp_version,'3.4', '<'))
+        return get_themes();
+
+    global $wp_themes;
+    if ( isset( $wp_themes ) )
+        return $wp_themes;
+
+    $themes = wp_get_themes();
+    $wp_themes = array();
+
+    foreach ( $themes as $theme ) {
+        $name = $theme->get('Name');
+        if ( isset( $wp_themes[ $name ] ) )
+            $wp_themes[ $name . '/' . $theme->get_stylesheet() ] = $theme;
+        else
+            $wp_themes[ $name ] = $theme;
+    }
+
+    return $wp_themes;
 }

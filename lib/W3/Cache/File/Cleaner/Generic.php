@@ -7,12 +7,18 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-require_once W3TC_LIB_W3_DIR . '/Cache/File/Cleaner.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cache/File/Cleaner.php');
 
 /**
  * Class W3_Cache_File_Cleaner_Generic
  */
 class W3_Cache_File_Cleaner_Generic extends W3_Cache_File_Cleaner {
+    /**
+     * Number of items processed
+     *
+     * @var integer
+     */
+    var $processed_count = 0;
     /**
      * Cache expire time
      *
@@ -31,18 +37,46 @@ class W3_Cache_File_Cleaner_Generic extends W3_Cache_File_Cleaner {
         $this->_expire = (isset($config['expire']) ? (int) $config['expire'] : 0);
 
         if (!$this->_expire || $this->_expire > W3TC_CACHE_FILE_EXPIRE_MAX) {
-            $this->_expire = W3TC_CACHE_FILE_EXPIRE_MAX;
+            $this->_expire = 0;
         }
     }
 
-    /**
-     * PHP4-style constructor
-     *
-     * @param array $config
-     * @return void
-     */
-    function W3_Cache_File_Cleaner_Generic($config = array()) {
-        $this->__construct($config);
+    function _clean($path, $remove = false) {
+        $dir = @opendir($path);
+
+        if ($dir) {
+            while (($entry = @readdir($dir)) !== false) {
+                if ($entry == '.' || $entry == '..') {
+                    continue;
+                }
+                if (substr($entry, -4) === '.old') {
+                    continue;
+                }
+
+                foreach ($this->_exclude as $mask) {
+                    if (fnmatch($mask, basename($entry))) {
+                        continue 2;
+                    }
+                }
+
+                $full_path = $path . DIRECTORY_SEPARATOR . $entry;
+
+                if (@is_dir($full_path)) {
+                    $this->_clean($full_path);
+                } elseif (!$this->is_valid($full_path)) {
+                    $old_entry_path = $full_path . '.old';
+                    $this->processed_count++;
+                    if (!@rename($full_path, $old_entry_path)) {
+                        // if we can delete old entry - do second attempt to store in old-entry file
+                        if (@unlink($old_entry_path)) {
+                            @rename($full_path, $old_entry_path);
+                        }
+                    }
+                }
+            }
+
+            @closedir($dir);
+        }
     }
 
     /**
@@ -52,6 +86,9 @@ class W3_Cache_File_Cleaner_Generic extends W3_Cache_File_Cleaner {
      * @return bool
      */
     function is_valid($file) {
+        if ($this->_expire <= 0)
+          return false;
+
         if (file_exists($file)) {
             $ftime = @filemtime($file);
 

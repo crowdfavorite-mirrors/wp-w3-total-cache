@@ -2,7 +2,7 @@
 <tr>
 	<th><label for="cdn_mirror_ssl"><acronym title="Secure Sockets Layer">SSL</acronym> support:</label></th>
 	<td>
-		<select id="cdn_mirror_ssl" name="cdn.mirror.ssl">
+		<select id="cdn_mirror_ssl" name="cdn.mirror.ssl" <?php $this->sealing_disabled('cdn') ?>>
 			<option value="auto"<?php selected($this->_config->get_string('cdn.mirror.ssl'), 'auto'); ?>>Auto (determine connection type automatically)</option>
 			<option value="enabled"<?php selected($this->_config->get_string('cdn.mirror.ssl'), 'enabled'); ?>>Enabled (always use SSL)</option>
 			<option value="disabled"<?php selected($this->_config->get_string('cdn.mirror.ssl'), 'disabled'); ?>>Disabled (always use HTTP)</option>

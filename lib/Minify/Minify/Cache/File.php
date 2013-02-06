@@ -1,6 +1,6 @@
 <?php
 
-require_once W3TC_INC_DIR . '/functions/file.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
 
 /**
  * Class Minify_Cache_File
@@ -9,9 +9,9 @@ require_once W3TC_INC_DIR . '/functions/file.php';
 
 class Minify_Cache_File {
 
-    public function __construct($path = '', $exclude = array(), $locking = false, $flushTimeLimit = 0) {
+    public function __construct($path = '', $exclude = array(), $locking = false, $flushTimeLimit = 0, $flush_path = null) {
         if (!$path) {
-            require_once W3TC_LIB_MINIFY_DIR . '/Solar/Dir.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Solar/Dir.php');
             $path = rtrim(Solar_Dir::tmp(), DIRECTORY_SEPARATOR);
         }
 
@@ -19,6 +19,14 @@ class Minify_Cache_File {
         $this->_exclude = $exclude;
         $this->_locking = $locking;
         $this->_flushTimeLimit = $flushTimeLimit;
+
+        $this->_flush_path = (is_null($flush_path) ? $path : $flush_path);
+
+        if (!file_exists($this->_path .'/index.html')) {
+            if (!is_dir($this->_path))
+                w3_mkdir_from($this->_path, W3TC_CACHE_DIR);
+            @file_put_contents($this->_path .'/index.html', '');
+        }
     }
 
     /**
@@ -38,14 +46,16 @@ class Minify_Cache_File {
             @unlink($path);
         }
 
-        $dir = dirname($id);
-
-        if ($dir) {
-            w3_mkdir($dir, 0777, $this->_path);
-        }
-
         if (!@file_put_contents($path, $data, $flag)) {
-            return false;
+            // retry with make dir
+            w3_mkdir_from(dirname($path), W3TC_CACHE_DIR);
+
+            if (!@file_put_contents($path, $data, $flag))
+                return false;
+            if (is_file($path . '.old')) {
+                @unlink($path . '.old');
+            }
+            @file_put_contents($path . '.old', $data, $flag);
         }
 
         // write control
@@ -54,7 +64,6 @@ class Minify_Cache_File {
 
             return false;
         }
-
         return true;
     }
 
@@ -139,6 +148,19 @@ class Minify_Cache_File {
             } else {
                 return @file_get_contents($path);
             }
+        } else {
+            $path_old = $path . '.old';
+            $too_old_time = time() - 30;
+
+            $file_time = @filemtime($path_old);
+            if ($file_time) {
+                if ($file_time > $too_old_time) {
+                    // return old data
+                    return @file_get_contents($path_old);
+                }
+
+                @touch($path_old);
+            }
         }
 
         return false;
@@ -152,7 +174,7 @@ class Minify_Cache_File {
     public function flush() {
         @set_time_limit($this->_flushTimeLimit);
 
-        return w3_emptydir($this->_path, $this->_exclude);
+        return w3_emptydir($this->_flush_path, $this->_exclude);
     }
 
     /**

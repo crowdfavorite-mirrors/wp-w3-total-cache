@@ -10,7 +10,7 @@ if (!defined('W3TC')) {
 /**
  * Minify_Source
  */
-require_once W3TC_LIB_MINIFY_DIR . '/Minify/Source.php';
+w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Source.php');
 
 /**
  * Minify - Combines, minifies, and caches JavaScript and CSS files on demand.
@@ -164,8 +164,8 @@ class Minify {
             // make $controller into object
             $class = 'Minify_Controller_' . $controller;
             if (! class_exists($class, false)) {
-                require_once W3TC_LIB_MINIFY_DIR . "/Minify/Controller/"
-                    . str_replace('_', '/', $controller) . ".php";
+                w3_require_once(W3TC_LIB_MINIFY_DIR . "/Minify/Controller/"
+                    . str_replace('_', '/', $controller) . ".php");
             }
             $controller = new $class();
         }
@@ -208,7 +208,7 @@ class Minify {
                 $contentEncoding = self::$_options['encodeMethod'];
             } else {
                 // sniff request header
-                require_once W3TC_LIB_MINIFY_DIR . '/HTTP/Encoder.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/HTTP/Encoder.php');
                 // depending on what the client accepts, $contentEncoding may be
                 // 'x-gzip' while our internal encodeMethod is 'gzip'. Calling
                 // getAcceptedEncoding(false, false) leaves out compress and deflate as options.
@@ -219,7 +219,7 @@ class Minify {
         }
 
         // check client cache
-        require_once W3TC_LIB_MINIFY_DIR . '/HTTP/ConditionalGet.php';
+        w3_require_once(W3TC_LIB_MINIFY_DIR . '/HTTP/ConditionalGet.php');
         $cgOptions = array(
             'cacheHeaders' => self::$_options['cacheHeaders']
             ,'lastModifiedTime' => self::$_options['lastModifiedTime']
@@ -391,7 +391,7 @@ class Minify {
             if ($unsetPathInfo) {
                 unset($_SERVER['PATH_INFO']);
             }
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/Logger.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Logger.php');
             Minify_Logger::log("setDocRoot() set DOCUMENT_ROOT to \"{$_SERVER['DOCUMENT_ROOT']}\"");
         }
     }

@@ -49,10 +49,10 @@ class Minify_CSS {
      * @return string
      */
     public static function minify($css, $options = array()) {
-        require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSS/Compressor.php';
+        w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS/Compressor.php');
 
         if (isset($options['preserveComments']) && $options['preserveComments']) {
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/CommentPreserver.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CommentPreserver.php');
 
             $css = Minify_CommentPreserver::process(
                 $css,
@@ -63,7 +63,7 @@ class Minify_CSS {
             $css = Minify_CSS_Compressor::process($css, $options);
         }
 
-        require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php';
+        w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php');
 
         $css = Minify_CSS_UriRewriter::rewrite($css, $options);
 

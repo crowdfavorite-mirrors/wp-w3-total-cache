@@ -7,7 +7,7 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_LIB_W3_DIR . '/Plugin.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Plugin.php');
 
 /**
  * Class W3_Plugin_Minify
@@ -80,6 +80,20 @@ class W3_Plugin_Minify extends W3_Plugin {
                 'ob_callback'
             ));
         }
+
+        if (!is_admin()) {
+            $dispatcher = w3_instance('W3_Dispatcher');
+            if($dispatcher->send_minify_headers($this->_config))
+                add_action('send_headers', array(
+                    &$this,
+                    'send_headers'
+                ));
+        }
+
+        if (is_admin()) {
+            $admin = $this->get_admin();
+            $admin->add_index_files_if_required();
+        }
     }
 
     /**
@@ -87,19 +101,19 @@ class W3_Plugin_Minify extends W3_Plugin {
      *
      * @return W3_Plugin_MinifyAdmin
      */
-    function &get_admin() {
+    function get_admin() {
         return w3_instance('W3_Plugin_MinifyAdmin');
     }
 
     /**
-     * Activate plugin action (called by W3_PluginProxy)
+     * Activate plugin action (called by W3_Plugins)
      */
     function activate() {
         $this->get_admin()->activate();
     }
 
     /**
-     * Deactivate plugin action (called by W3_PluginProxy)
+     * Deactivate plugin action (called by W3_Plugins)
      */
     function deactivate() {
         $this->get_admin()->deactivate();
@@ -144,92 +158,172 @@ class W3_Plugin_Minify extends W3_Plugin {
                  * Replace script and style tags
                  */
                 if (function_exists('is_feed') && !is_feed()) {
+                    w3_require_once(W3TC_INC_DIR . '/functions/extract.php');
                     $head_prepend = '';
                     $body_prepend = '';
                     $body_append = '';
+                    $embed_extsrcjs = false;
 
                     if ($this->_config->get_boolean('minify.auto')) {
                         if ($this->_config->get_boolean('minify.css.enable')) {
-                            $files_css = $this->get_files_css($buffer);
-                            $style = $this->get_style_custom($files_css);
+                            $ignore_css_files = $this->_config->get_array('minify.reject.files.css');
+                            $files_to_minify = array();
 
-                            if ($style) {
-                                $head_prepend .= $style;
-                                $this->remove_styles($buffer, $files_css);
+                            $embed_pos = strpos($buffer, '<!-- W3TC-include-css -->');
+
+
+                            $buffer = str_replace('<!-- W3TC-include-css -->', '', $buffer);
+                            if ($embed_pos === false) {
+                                preg_match('~<head(\s+[^<>]+)*>~Ui', $buffer, $match, PREG_OFFSET_CAPTURE);
+                                $embed_pos = strlen($match[0][0]) + $match[0][1];
                             }
+
+                            $ignore_css_files = array_map('w3_normalize_file', $ignore_css_files);
+                            $handled_styles = array();
+                            $style_tags = w3_extract_css2($buffer);
+                            $previous_file_was_ignored = false;
+                            foreach ($style_tags as $style_tag_tuple) {
+                                $style_tag = $style_tag_tuple[0];
+                                $tag_pos = strpos($buffer, $style_tag);
+                                $match = array();
+                                $file = $style_tag_tuple[1];
+                                $file = w3_normalize_file_minify2($file);
+                                $style_len = strlen($style_tag);
+
+                                if (!$this->_filter_files($file) || in_array($file, $handled_styles)) {
+                                    continue;
+                                }
+                                $handled_styles[] = $file;
+                                if (in_array($file, $ignore_css_files)) {
+                                    if ($tag_pos > $embed_pos) {
+                                        if ($files_to_minify) {
+                                            $style = $this->get_style_custom($files_to_minify);
+                                            $buffer = substr_replace($buffer, $style, $embed_pos, 0);
+                                            $files_to_minify = array();
+                                            $style_len = $style_len +strlen($style);
+                                        }
+                                        $embed_pos = $embed_pos + $style_len;
+                                        $previous_file_was_ignored = true;
+                                    }
+                                } else {
+                                    $buffer = substr_replace($buffer,'', $tag_pos, $style_len);
+                                    if ($embed_pos > $tag_pos)
+                                        $embed_pos -= $style_len;
+                                    elseif ($previous_file_was_ignored)
+                                        $embed_pos = $tag_pos;
+
+                                    $files_to_minify[] = $file;
+                                }
+                            }
+                            $style = $this->get_style_custom($files_to_minify);
+                            $buffer = substr_replace($buffer, $style, $embed_pos, 0);
                         }
 
                         if ($this->_config->get_boolean('minify.js.enable')) {
-                            $files_js = $this->get_files_js($buffer);
-                            $script = $this->get_script_custom($files_js);
+                            $ignore_js_files = $this->_config->get_array('minify.reject.files.js');
+                            $embed_type = $this->_config->get_string('minify.js.header.embed_type');
+                            $embed_type = $embed_type == 'extsrc' || $embed_type == 'asyncsrc'?'blocking':$embed_type;
 
-                            if ($script) {
-                                $head_prepend .= $script;
-                                $this->remove_scripts($buffer, $files_js);
+                            $embed_pos = strpos($buffer, '<!-- W3TC-include-js-head -->');
+                            $buffer = str_replace('<!-- W3TC-include-js-head -->', '', $buffer);
+                            if ($embed_pos === false) {
+                                preg_match('~<head(\s+[^<>]+)*>~Ui', $buffer, $match, PREG_OFFSET_CAPTURE);
+                                $embed_pos = strlen($match[0][0]) + $match[0][1];
                             }
+
+                            $ignore_js_files = array_map('w3_normalize_file', $ignore_js_files);
+                            $files_to_minify = array();
+                            $handled_scripts = array();
+                            $script_tags = w3_extract_js2($buffer);
+                            $previous_file_was_ignored = false;
+                            foreach ($script_tags as $script_tag) {
+                                $tag_pos = strpos($buffer, $script_tag);
+                                $match = array();
+                                preg_match('~<script\s+[^<>]*src=["\']?([^"\']+)["\']?[^<>]*>\s*</script>~is', $script_tag, $match);
+                                $file = $match[1];
+                                $file = w3_normalize_file_minify2($file);
+                                $script_len = strlen($script_tag);
+                                if (!$this->_filter_files($file) || in_array($file, $handled_scripts)) {
+                                    continue;
+                                }
+                                $handled_scripts[] = $file;
+                                if (in_array($file, $ignore_js_files)) {
+                                    if ($tag_pos > $embed_pos) {
+                                        if ($files_to_minify) {
+                                            $script = $this->get_script_custom($files_to_minify, $embed_type);
+                                            $buffer = substr_replace($buffer, $script, $embed_pos, 0);
+                                            $files_to_minify = array();
+                                            $script_len = $script_len +strlen($script);
+                                        }
+
+                                        $embed_pos = $embed_pos + $script_len;
+                                        $previous_file_was_ignored = true;
+                                    }
+                                } else {
+                                    $buffer = substr_replace($buffer,'', $tag_pos, $script_len);
+                                    if ($embed_pos > $tag_pos)
+                                        $embed_pos -= $script_len;
+                                    elseif ($previous_file_was_ignored)
+                                        $embed_pos = $tag_pos;
+                                    $files_to_minify[] = $file;
+                                }
+                            }
+                            $script = $this->get_script_custom($files_to_minify, $embed_type);
+                            $buffer = substr_replace($buffer, $script, $embed_pos, 0);
                         }
                     } else {
                         if ($this->_config->get_boolean('minify.css.enable') && !in_array('include', $this->printed_styles)) {
                             $style = $this->get_style_group('include');
 
                             if ($style) {
-                                $head_prepend .= $style;
+                                if ($this->_custom_location_does_not_exist('/<!-- W3TC-include-css -->/', $buffer, $style))
+                                    $head_prepend .= $style;
+
                                 $this->remove_styles_group($buffer, 'include');
                             }
                         }
 
                         if ($this->_config->get_boolean('minify.js.enable')) {
+
                             if (!in_array('include', $this->printed_scripts)) {
-                                $script = $this->get_script_group('include');
+                                $embed_type = $this->_config->get_string('minify.js.header.embed_type');
+                                $script = $this->get_script_group('include',$embed_type);
 
                                 if ($script) {
-                                    $head_prepend .= $script;
-                                    $this->remove_scripts_group($buffer, 'include');
-                                }
-                            }
+                                    $embed_extsrcjs = $embed_type == 'extsrc' || $embed_type == 'asyncsrc'?true:$embed_extsrcjs;
 
-                            if (!in_array('include-nb', $this->printed_scripts)) {
-                                $script = $this->get_script_group('include-nb');
+                                    if ($this->_custom_location_does_not_exist('/<!-- W3TC-include-js-head -->/', $buffer, $script))
+                                        $head_prepend .= $script;
 
-                                if ($script) {
-                                    $head_prepend .= $script;
-                                    $this->remove_scripts_group($buffer, 'include-nb');
+                                     $this->remove_scripts_group($buffer, 'include', $embed_type);
                                 }
                             }
 
                             if (!in_array('include-body', $this->printed_scripts)) {
-                                $script = $this->get_script_group('include-body');
+                                $embed_type = $this->_config->get_string('minify.js.body.embed_type');
+                                $script = $this->get_script_group('include-body',$embed_type);
 
                                 if ($script) {
-                                    $body_prepend .= $script;
-                                    $this->remove_scripts_group($buffer, 'include-body');
-                                }
-                            }
+                                    $embed_extsrcjs = $embed_type == 'extsrc' || $embed_type == 'asyncsrc'?true:$embed_extsrcjs;
 
-                            if (!in_array('include-body-nb', $this->printed_scripts)) {
-                                $script = $this->get_script_group('include-body-nb');
+                                    if ($this->_custom_location_does_not_exist('/<!-- W3TC-include-js-body-start -->/', $buffer, $script))
+                                        $body_prepend .= $script;
 
-                                if ($script) {
-                                    $body_prepend .= $script;
-                                    $this->remove_scripts_group($buffer, 'include-body-nb');
+                                     $this->remove_scripts_group($buffer, 'include-body', $embed_type);
                                 }
                             }
 
                             if (!in_array('include-footer', $this->printed_scripts)) {
-                                $script = $this->get_script_group('include-footer');
+                                $embed_type = $this->_config->get_string('minify.js.footer.embed_type');
+                                $script = $this->get_script_group('include-footer',$embed_type);
 
                                 if ($script) {
-                                    $body_append .= $script;
-                                    $this->remove_scripts_group($buffer, 'include-footer');
-                                }
-                            }
+                                    $embed_extsrcjs = $embed_type == 'extsrc' || $embed_type == 'asyncsrc'?true:$embed_extsrcjs;
 
-                            if (!in_array('include-footer-nb', $this->printed_scripts)) {
-                                $script = $this->get_script_group('include-footer-nb');
+                                    if ($this->_custom_location_does_not_exist('/<!-- W3TC-include-js-body-end -->/', $buffer, $script))
+                                        $body_append .= $script;
 
-                                if ($script) {
-                                    $body_append .= $script;
-                                    $this->remove_scripts_group($buffer, 'include-footer-nb');
+                                    $this->remove_scripts_group($buffer, 'include-footer', $embed_type);
                                 }
                             }
                         }
@@ -245,6 +339,17 @@ class W3_Plugin_Minify extends W3_Plugin {
 
                     if ($body_append != '') {
                         $buffer = preg_replace('~<\\/body>~', $body_append . '\\0', $buffer, 1);
+                    }
+
+                    if ($embed_extsrcjs) {
+                        $script = "
+<script type=\"text/javascript\">
+" ."var extsrc=null;
+".'(function(){function j(){if(b&&g){document.write=k;document.writeln=l;var f=document.createElement("span");f.innerHTML=b;g.appendChild(f);b=""}}function d(){j();for(var f=document.getElementsByTagName("script"),c=0;c<f.length;c++){var e=f[c],h=e.getAttribute("asyncsrc");if(h){e.setAttribute("asyncsrc","");var a=document.createElement("script");a.async=!0;a.src=h;document.getElementsByTagName("head")[0].appendChild(a)}if(h=e.getAttribute("extsrc")){e.setAttribute("extsrc","");g=document.createElement("span");e.parentNode.insertBefore(g,e);document.write=function(a){b+=a};document.writeln=function(a){b+=a;b+="\n"};a=document.createElement("script");a.async=!0;a.src=h;/msie/i.test(navigator.userAgent)&&!/opera/i.test(navigator.userAgent)?a.onreadystatechange=function(){("loaded"==this.readyState||"complete"==this.readyState)&&d()}:-1!=navigator.userAgent.indexOf("Firefox")||"onerror"in a?(a.onload=d,a.onerror=d):(a.onload=d,a.onreadystatechange=d);document.getElementsByTagName("head")[0].appendChild(a);return}}j();document.write=k;document.writeln=l;for(c=0;c<extsrc.complete.funcs.length;c++)extsrc.complete.funcs[c]()}function i(){arguments.callee.done||(arguments.callee.done=!0,d())}extsrc={complete:function(b){this.complete.funcs.push(b)}};extsrc.complete.funcs=[];var k=document.write,l=document.writeln,b="",g="";document.addEventListener&&document.addEventListener("DOMContentLoaded",i,!1);if(/WebKit/i.test(navigator.userAgent))var m=setInterval(function(){/loaded|complete/.test(document.readyState)&&(clearInterval(m),i())},10);window.onload=i})();' . "
+</script>
+";
+
+                        $buffer = preg_replace('~<head(\s+[^<>]+)*>~Ui', '\\0' . $script, $buffer, 1);
                     }
                 }
 
@@ -269,13 +374,27 @@ class W3_Plugin_Minify extends W3_Plugin {
     }
 
     /**
+     * Checks to see if pattern exists in source if so replaces it with the provided script
+     * and returns false. If pattern does not exists returns true.
+     * @param $pattern
+     * @param $source
+     * @param $script
+     * @return bool
+     */
+    function _custom_location_does_not_exist($pattern, &$source, $script){
+        $count = 0;
+        $source = preg_replace($pattern, $script, $source, 1, $count);
+        return $count==0;
+    }
+
+    /**
      * Parse buffer and return array of JS files from it
      *
      * @param string $buffer
      * @return array
      */
     function get_files_js(&$buffer) {
-        require_once W3TC_INC_DIR . '/functions/extract.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/extract.php');
 
         $files = w3_extract_js($buffer);
         $files = $this->filter_files($files);
@@ -290,7 +409,7 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @return array
      */
     function get_files_css(&$buffer) {
-        require_once W3TC_INC_DIR . '/functions/extract.php';
+        w3_require_once(W3TC_INC_DIR . '/functions/extract.php');
 
         $files = w3_extract_css($buffer);
         $files = $this->filter_files($files);
@@ -317,13 +436,21 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @return bool
      */
     function _filter_files($file) {
-        if (w3_is_url($file)) {
-            return false;
-        }
-
+        static $external;
         $ext = strrchr($file, '.');
 
         if ($ext != '.js' && $ext != '.css') {
+            return false;
+        }
+
+        if (!isset($external))
+            $external = $this->_config->get_array('minify.cache.files');
+        foreach($external as $ext) {
+            if(preg_match('#'.w3_get_url_regexp($ext).'#',$file))
+                return true;
+        }
+
+        if (w3_is_url($file)) {
             return false;
         }
 
@@ -345,18 +472,25 @@ class W3_Plugin_Minify extends W3_Plugin {
      */
     function remove_styles(&$content, $files) {
         $regexps = array();
-        $domain_url_regexp = w3_get_domain_url_regexp();
+        $home_url_regexp = w3_get_home_url_regexp();
+
+        $path = '';
+        if (w3_is_network() && !w3_is_subdomain_install())
+            $path = ltrim(w3_get_home_path(), '/');
 
         foreach ($files as $file) {
+            if ($path && strpos($file, $path) === 0)
+                $file = substr($file, strlen($path));
+
             $this->replaced_styles[] = $file;
 
-            if (w3_is_url($file) && !preg_match('~' . $domain_url_regexp . '~i', $file)) {
+            if (w3_is_url($file) && !preg_match('~' . $home_url_regexp . '~i', $file)) {
                 // external CSS files
                 $regexps[] = w3_preg_quote($file);
             } else {
                 // local CSS files
-                $file = ltrim(preg_replace('~' . $domain_url_regexp . '~i', '', $file), '/\\');
-                $regexps[] = '(' . $domain_url_regexp . ')?/?' . w3_preg_quote($file);
+                $file = ltrim(preg_replace('~' . $home_url_regexp . '~i', '', $file), '/\\');
+                $regexps[] = '(' . $home_url_regexp . ')?/?' . w3_preg_quote($file);
             }
         }
 
@@ -377,18 +511,25 @@ class W3_Plugin_Minify extends W3_Plugin {
      */
     function remove_scripts(&$content, $files) {
         $regexps = array();
-        $domain_url_regexp = w3_get_domain_url_regexp();
+        $home_url_regexp = w3_get_home_url_regexp();
+
+        $path = '';
+        if (w3_is_network() && !w3_is_subdomain_install())
+            $path = ltrim(w3_get_home_path(), '/');
 
         foreach ($files as $file) {
+            if ($path && strpos($file, $path) === 0)
+                $file = substr($file, strlen($path));
+
             $this->replaced_scripts[] = $file;
 
-            if (w3_is_url($file) && !preg_match('~' . $domain_url_regexp . '~i', $file)) {
+            if (w3_is_url($file) && !preg_match('~' . $home_url_regexp . '~i', $file)) {
                 // external JS files
                 $regexps[] = w3_preg_quote($file);
             } else {
                 // local JS files
-                $file = ltrim(preg_replace('~' . $domain_url_regexp . '~i', '', $file), '/\\');
-                $regexps[] = '(' . $domain_url_regexp . ')?/?' . w3_preg_quote($file);
+                $file = ltrim(preg_replace('~' . $home_url_regexp . '~i', '', $file), '/\\');
+                $regexps[] = '(' . $home_url_regexp . ')?/?' . w3_preg_quote($file);
             }
         }
 
@@ -429,10 +570,9 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @param string $location
      * @return void
      */
-    function remove_scripts_group(&$content, $location) {
+    function remove_scripts_group(&$content, $location, $type) {
         $theme = $this->get_theme();
         $template = $this->get_template();
-
         $files = array();
         $groups = $this->_config->get_array('minify.js.groups');
 
@@ -454,14 +594,14 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @return string
      */
     function minify_html(&$html) {
-        $w3_minifier = & w3_instance('W3_Minifier');
+        $w3_minifier = w3_instance('W3_Minifier');
 
         $ignored_comments = $this->_config->get_array('minify.html.comments.ignore');
 
         if (count($ignored_comments)) {
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/IgnoredCommentPreserver.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/IgnoredCommentPreserver.php');
 
-            @$ignored_comments_preserver =& new Minify_IgnoredCommentPreserver();
+            $ignored_comments_preserver = new Minify_IgnoredCommentPreserver();
             $ignored_comments_preserver->setIgnoredComments($ignored_comments);
 
             $ignored_comments_preserver->search($html);
@@ -479,8 +619,8 @@ class W3_Plugin_Minify extends W3_Plugin {
 
             $w3_minifier->init($js_engine);
 
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/Inline.php';
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/Inline/JavaScript.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Inline.php');
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Inline/JavaScript.php');
 
             $html = Minify_Inline_JavaScript::minify($html, $js_minifier, $js_options);
         }
@@ -497,8 +637,8 @@ class W3_Plugin_Minify extends W3_Plugin {
 
             $w3_minifier->init($css_engine);
 
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/Inline.php';
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/Inline/CSS.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Inline.php');
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Inline/CSS.php');
 
             $html = Minify_Inline_CSS::minify($html, $css_minifier, $css_options);
         }
@@ -553,7 +693,7 @@ class W3_Plugin_Minify extends W3_Plugin {
                 case (is_404() && ($template_file = get_404_template())):
                 case (is_search() && ($template_file = get_search_template())):
                 case (is_tax() && ($template_file = get_taxonomy_template())):
-                case (is_front_page() && function_exists('get_front_page_template') && $template = get_front_page_template()):
+                case (is_front_page() && function_exists('get_front_page_template') && $template_file = get_front_page_template()):
                 case (is_home() && ($template_file = get_home_template())):
                 case (is_attachment() && ($template_file = get_attachment_template())):
                 case (is_single() && ($template_file = get_single_template())):
@@ -589,10 +729,12 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @param boolean $import
      * @return string
      */
-    function get_style($url, $import = false) {
-        if ($import) {
+    function get_style($url, $import = false, $use_style = true) {
+        if ($import && $use_style) {
             return "<style type=\"text/css\" media=\"all\">@import url(\"" . $url . "\");</style>\r\n";
-        } else {
+        } elseif ($import && !$use_style) {
+            return "@import url(\"" . $url . "\");\r\n";
+        }else {
             return "<link rel=\"stylesheet\" type=\"text/css\" href=\"" . str_replace('&', '&amp;', $url) . "\" media=\"all\" />\r\n";
         }
     }
@@ -601,26 +743,36 @@ class W3_Plugin_Minify extends W3_Plugin {
      * Prints script tag
      *
      * @param string $url
-     * @param boolean $blocking
+     * @param string $embed_type
      * @return string
      */
-    function get_script($url, $blocking = true) {
+    function get_script($url, $embed_type = 'blocking') {
         static $non_blocking_function = false;
 
-        if ($blocking) {
-            return '<script type="text/javascript" src="' . str_replace('&', '&amp;', $url) . '"></script>';
+        if ($embed_type == 'blocking') {
+            $script = '<script type="text/javascript" src="' . str_replace('&', '&amp;', $url) . '"></script>';
         } else {
             $script = '';
 
-            if (!$non_blocking_function) {
-                $non_blocking_function = true;
-                $script = "<script type=\"text/javascript\">function w3tc_load_js(u){var d=document,p=d.getElementsByTagName('HEAD')[0],c=d.createElement('script');c.type='text/javascript';c.src=u;p.appendChild(c);}</script>";
+            if($embed_type == 'nb-js'){
+                if (!$non_blocking_function) {
+                    $non_blocking_function = true;
+                    $script = "<script type=\"text/javascript\">function w3tc_load_js(u){var d=document,p=d.getElementsByTagName('HEAD')[0],c=d.createElement('script');c.type='text/javascript';c.src=u;p.appendChild(c);}</script>";
+                }
+
+                $script .= "<script type=\"text/javascript\">w3tc_load_js('" . $url . "');</script>";
+
+            } else if ($embed_type == 'nb-async') {
+                $script = '<script async type="text/javascript" src="' . str_replace('&', '&amp;', $url) . '"></script>';
+            } else if ($embed_type == 'nb-defer') {
+                $script = '<script defer type="text/javascript" src="' . str_replace('&', '&amp;', $url) . '"></script>';
+            } else if ($embed_type == 'extsrc') {
+                $script = '<script type="text/javascript" extsrc="' . str_replace('&', '&amp;', $url) . '"></script>';
+            } else if ($embed_type == 'asyncsrc') {
+                $script = '<script type="text/javascript" asyncsrc="' . str_replace('&', '&amp;', $url) . '"></script>';
             }
-
-            $script .= "<script type=\"text/javascript\">w3tc_load_js('" . $url . "');</script>";
-
-            return $script;
         }
+        return $script . "\r\n";
     }
 
     /**
@@ -657,11 +809,12 @@ class W3_Plugin_Minify extends W3_Plugin {
      * Returns script tag for script group
      *
      * @param string $location
+     * @param string $embed_type
      * @return array
      */
-    function get_script_group($location) {
+    function get_script_group($location, $embed_type = 'blocking') {
         $script = false;
-        $type = 'js';
+        $fileType = 'js';
         $theme = $this->get_theme();
         $template = $this->get_template();
         $groups = $this->_config->get_array('minify.js.groups');
@@ -671,12 +824,10 @@ class W3_Plugin_Minify extends W3_Plugin {
         }
 
         if (!empty($groups[$theme][$template][$location]['files'])) {
-            $url = $this->format_url_group($theme, $template, $location, $type);
+            $url = $this->format_url_group($theme, $template, $location, $fileType);
 
             if ($url) {
-                $blocking = (isset($groups[$theme][$template][$location]['blocking']) ? (boolean) $groups[$theme][$template][$location]['blocking'] : true);
-
-                $script = $this->get_script($url, $blocking);
+                $script = $this->get_script($url, $embed_type);
             }
         }
 
@@ -687,17 +838,20 @@ class W3_Plugin_Minify extends W3_Plugin {
      * Returns script tag for custom files
      *
      * @param string|array $files
-     * @param bool $blocking
+     * @param string $embed_type
      * @return string
      */
-    function get_script_custom($files, $blocking = true) {
+    function get_script_custom($files, $embed_type = 'blocking') {
         $script = false;
 
         if (count($files)) {
-            $url = $this->format_url_custom($files, 'js');
+            $urls = $this->get_minify_urls_for_files($files, 'js');
+            $script = '';
 
-            if ($url) {
-                $script = $this->get_script($url, $blocking);
+            if ($urls) {
+                foreach ($urls as $url) {
+                    $script .= $this->get_script($url, $embed_type);
+                }
             }
         }
 
@@ -711,14 +865,17 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @param boolean $import
      * @return string
      */
-    function get_style_custom($files, $import = false) {
+    function get_style_custom($files, $import = false, $use_style = false) {
         $style = false;
 
         if (count($files)) {
-            $url = $this->format_url_custom($files, 'css');
+            $urls = $this->get_minify_urls_for_files($files, 'css');
+            $style = '';
 
-            if ($url) {
-                $style = $this->get_style($url, $import);
+            if ($urls) {
+                foreach ($urls as $url) {
+                    $style .= $this->get_style($url, $import, $use_style);
+                }
             }
         }
 
@@ -736,18 +893,20 @@ class W3_Plugin_Minify extends W3_Plugin {
      * @return string
      */
     function format_url_group($theme, $template, $location, $type, $rewrite = null) {
-        $w3_minify = & w3_instance('W3_Minify');
+        $w3_minify = w3_instance('W3_Minify');
 
         $url = false;
         $id = $w3_minify->get_id_group($theme, $template, $location, $type);
 
         if ($id) {
-            $site_url_ssl = w3_get_site_url_ssl();
+            $minify_filename = $theme . '/' . $template . '.' . $location .
+                '.'. $id . '.' . $type;
+            $filename = w3_cache_blog_dir('minify') . '/' . $minify_filename;
 
             if ($this->_config->get_boolean('minify.rewrite')) {
-                $url = sprintf('%s/%s/%s/%s.%s.%s.%s', $site_url_ssl, W3TC_CONTENT_MINIFY_DIR_NAME, $theme, $template, $location, $id, $type);
+                $url = w3_filename_to_url($filename);
             } else {
-                $url = sprintf('%s/%s/index.php?file=%s/%s.%s.%s.%s', $site_url_ssl, W3TC_CONTENT_MINIFY_DIR_NAME, $theme, $template, $location, $id, $type);
+                $url = plugins_url('pub/minify.php?file=' . $minify_filename, W3TC_FILE);
             }
         }
 
@@ -759,25 +918,21 @@ class W3_Plugin_Minify extends W3_Plugin {
      *
      * @param array $files
      * @param string $type
-     * @return string
+     * @return array
      */
-    function format_url_custom($files, $type) {
-        $w3_minify = & w3_instance('W3_Minify');
-        $url = false;
-        $w3_minify->set_custom_files($files, $type);
-        $hash = $w3_minify->get_custom_files_hash($files);
-        $id = $w3_minify->get_id_custom($hash, $type);
-
-        if ($id) {
-            $site_url_ssl = w3_get_site_url_ssl();
+    function get_minify_urls_for_files($files, $type) {
+        $w3_minify = w3_instance('W3_Minify');
+        $url = array();
+        $minify_filenames = $w3_minify->compress_minify_files($files, $type);
+        foreach ($minify_filenames as $minify_filename) {
+            $filename = w3_cache_blog_dir('minify') . '/' . $minify_filename;
 
             if ($this->_config->get_boolean('minify.rewrite')) {
-                $url = sprintf('%s/%s/%s.%s.%s', $site_url_ssl, W3TC_CONTENT_MINIFY_DIR_NAME, $hash, $id, $type);
+                $url[] = w3_filename_to_url($filename);
             } else {
-                $url = sprintf('%s/%s/index.php?file=%s.%s.%s', $site_url_ssl, W3TC_CONTENT_MINIFY_DIR_NAME, $hash, $id, $type);
+                $url[] = plugins_url('pub/minify.php?file=' . $minify_filename, W3TC_FILE);
             }
         }
-
         return $url;
     }
 
@@ -993,8 +1148,10 @@ class W3_Plugin_Minify extends W3_Plugin {
         ));
 
         foreach ($uas as $ua) {
-            if (isset($_SERVER['HTTP_USER_AGENT']) && stristr($_SERVER['HTTP_USER_AGENT'], $ua) !== false) {
-                return false;
+            if (!empty($ua)) {
+                if (isset($_SERVER['HTTP_USER_AGENT']) && stristr($_SERVER['HTTP_USER_AGENT'], $ua) !== false) {
+                    return false;
+                }
             }
         }
 
@@ -1008,12 +1165,8 @@ class W3_Plugin_Minify extends W3_Plugin {
      */
     function check_logged_in() {
         foreach (array_keys($_COOKIE) as $cookie_name) {
-            if ($cookie_name == 'wordpress_test_cookie') {
-                continue;
-            }
-            if (strpos($cookie_name, 'wordpress') === 0) {
+            if (strpos($cookie_name, 'wordpress_logged_in') === 0)
                 return false;
-            }
         }
 
         return true;
@@ -1047,5 +1200,12 @@ class W3_Plugin_Minify extends W3_Plugin {
         }
 
         return true;
+    }
+
+    /**
+     * Send headers
+     */
+    function send_headers() {
+        @header('X-W3TC-Minify: On');
     }
 }

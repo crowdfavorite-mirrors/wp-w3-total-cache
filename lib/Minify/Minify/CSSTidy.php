@@ -35,7 +35,7 @@ class Minify_CSSTidy {
 
         $css = $csstidy->print->plain();
 
-        require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php';
+        w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php');
 
         $css = Minify_CSS_UriRewriter::rewrite($css, $options);
 

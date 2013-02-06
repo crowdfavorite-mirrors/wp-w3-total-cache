@@ -1,5 +1,49 @@
 <?php
 
+w3_require_once(W3TC_INC_DIR . '/functions/rule_cut.php');
+
+define('W3TC_MARKER_BEGIN_WORDPRESS', '# BEGIN WordPress');
+define('W3TC_MARKER_BEGIN_PGCACHE_CORE', '# BEGIN W3TC Page Cache core');
+define('W3TC_MARKER_BEGIN_PGCACHE_CACHE', '# BEGIN W3TC Page Cache cache');
+define('W3TC_MARKER_BEGIN_PGCACHE_LEGACY', '# BEGIN W3TC Page Cache');
+define('W3TC_MARKER_BEGIN_PGCACHE_WPSC', '# BEGIN WPSuperCache');
+define('W3TC_MARKER_BEGIN_BROWSERCACHE_CACHE', '# BEGIN W3TC Browser Cache');
+define('W3TC_MARKER_BEGIN_BROWSERCACHE_NO404WP', '# BEGIN W3TC Skip 404 error handling by WordPress for static files');
+define('W3TC_MARKER_BEGIN_MINIFY_CORE', '# BEGIN W3TC Minify core');
+define('W3TC_MARKER_BEGIN_MINIFY_CACHE', '# BEGIN W3TC Minify cache');
+define('W3TC_MARKER_BEGIN_MINIFY_LEGACY', '# BEGIN W3TC Minify');
+define('W3TC_MARKER_BEGIN_CDN', '# BEGIN W3TC CDN');
+define('W3TC_MARKER_BEGIN_NEW_RELIC_CORE', '# BEGIN W3TC New Relic core');
+
+
+define('W3TC_MARKER_END_WORDPRESS', '# END WordPress');
+define('W3TC_MARKER_END_PGCACHE_CORE', '# END W3TC Page Cache core');
+define('W3TC_MARKER_END_PGCACHE_CACHE', '# END W3TC Page Cache cache');
+define('W3TC_MARKER_END_PGCACHE_LEGACY', '# END W3TC Page Cache');
+define('W3TC_MARKER_END_PGCACHE_WPSC', '# END WPSuperCache');
+define('W3TC_MARKER_END_BROWSERCACHE_CACHE', '# END W3TC Browser Cache');
+define('W3TC_MARKER_END_BROWSERCACHE_NO404WP', '# END W3TC Skip 404 error handling by WordPress for static files');
+define('W3TC_MARKER_END_MINIFY_CORE', '# END W3TC Minify core');
+define('W3TC_MARKER_END_MINIFY_CACHE', '# END W3TC Minify cache');
+define('W3TC_MARKER_END_MINIFY_LEGACY', '# END W3TC Minify');
+define('W3TC_MARKER_END_CDN', '# END W3TC CDN');
+define('W3TC_MARKER_END_NEW_RELIC_CORE', '# END W3TC New Relic core');
+
+
+/*
+ * Returns URI from filename/dirname
+ * Used for rules mainly since is not usable for regular URI,
+ * because wordpress adds blogname to uri making it uncompatible with
+ * directory structure
+ *
+ * @return string
+ */
+function w3_filename_to_uri($filename) {
+    $document_root = w3_get_document_root();
+
+    return substr($filename, strlen($document_root));
+}
+
 /**
  * Check if WP permalink directives exists
  *
@@ -16,12 +60,22 @@ function w3_is_permalink_rules() {
 }
 
 /**
+ * Removes empty elements
+ */
+function w3_array_trim(&$a) {
+    for ($n = count($a) - 1; $n >= 0; $n--) {
+        if (empty($a[$n]))
+            array_splice($a, $n, 1);
+    }
+}
+
+/**
  * Returns nginx rules path
  *
  * @return string
  */
 function w3_get_nginx_rules_path() {
-    $config = & w3_instance('W3_Config');
+    $config = w3_instance('W3_Config');
 
     $path = $config->get_string('config.path');
 
@@ -42,24 +96,6 @@ function w3_get_pgcache_rules_core_path() {
         case w3_is_apache():
         case w3_is_litespeed():
             return w3_get_home_root() . '/.htaccess';
-
-        case w3_is_nginx():
-            return w3_get_nginx_rules_path();
-    }
-
-    return false;
-}
-
-/**
- * Returns path of pgcache cache rules file
- *
- * @return string
- */
-function w3_get_pgcache_rules_cache_path() {
-    switch (true) {
-        case w3_is_apache():
-        case w3_is_litespeed():
-            return W3TC_CACHE_FILE_PGCACHE_DIR . '/.htaccess';
 
         case w3_is_nginx():
             return w3_get_nginx_rules_path();
@@ -113,7 +149,7 @@ function w3_get_minify_rules_core_path() {
     switch (true) {
         case w3_is_apache():
         case w3_is_litespeed():
-            return W3TC_CACHE_FILE_MINIFY_DIR . '/.htaccess';
+            return W3TC_CACHE_MINIFY_DIR . '/.htaccess';
 
         case w3_is_nginx():
             return w3_get_nginx_rules_path();
@@ -131,7 +167,7 @@ function w3_get_minify_rules_cache_path() {
     switch (true) {
         case w3_is_apache():
         case w3_is_litespeed():
-            return W3TC_CACHE_FILE_MINIFY_DIR . '/.htaccess';
+            return W3TC_CACHE_MINIFY_DIR . '/.htaccess';
 
         case w3_is_nginx():
             return w3_get_nginx_rules_path();
@@ -141,7 +177,7 @@ function w3_get_minify_rules_cache_path() {
 }
 
 /**
- * Returns path of minify rules file
+ * Returns path of CDN rules file
  *
  * @return string
  */
@@ -158,6 +194,10 @@ function w3_get_cdn_rules_path() {
     return false;
 }
 
+function w3_get_new_relic_rules_core_path() {
+    return w3_get_pgcache_rules_core_path();
+}
+
 /**
  * Returns true if we can modify rules
  *
@@ -166,7 +206,7 @@ function w3_get_cdn_rules_path() {
  */
 function w3_can_modify_rules($path) {
     if (w3_is_network()) {
-        if (w3_is_apache() || w3_is_litespeed()) {
+        if (w3_is_apache() || w3_is_litespeed() || w3_is_nginx()) {
             switch ($path) {
                 case w3_get_pgcache_rules_cache_path():
                 case w3_get_minify_rules_core_path():

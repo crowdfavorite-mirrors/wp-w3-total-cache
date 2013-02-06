@@ -2,16 +2,23 @@
 /*
 Plugin Name: W3 Total Cache
 Description: The highest rated and most complete WordPress performance plugin. Dramatically improve the speed and user experience of your site. Add browser, page, object and database caching as well as minify and content delivery network (CDN) to WordPress.
-Version: 0.9.2.5
+Version: 0.9.2.7
 Plugin URI: http://www.w3-edge.com/wordpress-plugins/w3-total-cache/
 Author: Frederick Townes
 Author URI: http://www.linkedin.com/in/w3edge
+Network: True
 */
 
 /*  Copyright (c) 2009 Frederick Townes <ftownes@w3-edge.com>
-	Portions of this distribution are copyrighted by:
+    Portions of this distribution are copyrighted by:
 		Copyright (c) 2008 Ryan Grove <ryan@wonko.com>
 		Copyright (c) 2008 Steve Clay <steve@mrclay.org>
+                Copyright (c) 2007 Matt Mullenweg
+                Copyright (c) 2007 Andy Skelton
+                Copyright (c) 2007 Iliya Polihronov
+                Copyright (c) 2007 Michael Adams
+                Copyright (c) 2007 Automattic Inc.
+                Ryan Boren
 	All rights reserved.
 
 	W3 Total Cache is distributed under the GNU General Public License, Version 2,
@@ -34,20 +41,25 @@ if (!defined('ABSPATH')) {
     die();
 }
 
+/**
+ * Abort W3TC loading if WordPress is upgrading
+ */
+if (defined('WP_INSTALLING') && WP_INSTALLING)
+    return;
+
 if (!defined('W3TC_IN_MINIFY')) {
     /**
      * Require plugin configuration
      */
     require_once dirname(__FILE__) . '/inc/define.php';
-
-    /**
-     * Load plugins
-     */
-    w3_load_plugins();
+    
+    // Load the wp cli command - if run from wp-cli
+    if (defined('WP_CLI') && WP_CLI)
+      w3_require_once(W3TC_LIB_W3_DIR . '/Cli.php');
 
     /**
      * Run plugin
      */
-    $w3_plugin_totalcache = & w3_instance('W3_Plugin_TotalCache');
+    $w3_plugin_totalcache = w3_instance('W3_Plugin_TotalCache');
     $w3_plugin_totalcache->run();
 }

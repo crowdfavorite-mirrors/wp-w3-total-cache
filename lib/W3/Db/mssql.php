@@ -1731,16 +1731,6 @@ class Fields_map
     var $filepath = '';
 
     /**
-     * php4 style call to constructor.
-     *
-     * @since 2.7.1
-     *
-     */
-    function Fields_map() {
-        return $this->__construct();
-    }
-
-    /**
      * Set filepath
      *
      * PHP5 style constructor for compatibility with PHP5.
@@ -2093,17 +2083,6 @@ class SQL_Translations
      * @var string
      */
     var $prefix = '';
-
-    /**
-     * php4 style call to constructor.
-     *
-     * @since 2.7.1
-     *
-     */
-    function SQL_Translations()
-    {
-        return $this->__construct();
-    }
 
     /**
      * Assign fields_map as a new Fields_map object

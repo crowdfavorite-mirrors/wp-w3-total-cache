@@ -1,5 +1,5 @@
 <?php if (!defined('W3TC')) die(); ?>
-<h3>Minify Help Wizard</h3>
+<h3>Minify: Help Wizard</h3>
 
 <p>
     To get started with minify, we've identified the following external CSS and JS objects in the
@@ -13,7 +13,6 @@
 
 <div id="recom_container">
     <h4 style="margin-top: 0;">JavaScript:</h4>
-
     <?php if (count($js_groups)) :?>
     <ul id="recom_js_files" class="minify-files">
         <?php $index = 0; foreach ($js_groups as $js_group => $js_files): ?>
@@ -45,16 +44,9 @@
             			<td>
             				<?php $selected = (isset($locations_js[$js_group][$js_file]) ? $locations_js[$js_group][$js_file] : ''); ?>
                             <select name="recom_js_location">
-                                <optgroup label="Blocking:">
-                                    <option value="include"<?php selected($selected, 'include'); ?>>Embed in &lt;head&gt;</option>
-                                    <option value="include-body"<?php selected($selected, 'include-body'); ?>>Embed after &lt;body&gt;</option>
-                                    <option value="include-footer"<?php selected($selected, 'include-footer'); ?>>Embed before &lt;/body&gt;</option>
-                                </optgroup>
-                                <optgroup label="Non-Blocking:">
-                                    <option value="include-nb"<?php selected($selected, 'include-nb'); ?>>Embed in &lt;head&gt;</option>
-                                    <option value="include-body-nb"<?php selected($selected, 'include-body-nb'); ?>>Embed after &lt;body&gt;</option>
-                                    <option value="include-footer-nb"<?php selected($selected, 'include-footer-nb'); ?>>Embed before &lt;/body&gt;</option>
-                                </optgroup>
+                                <option value="include"<?php selected($selected, 'include'); ?>>Embed in &lt;head&gt;</option>
+                                <option value="include-body"<?php selected($selected, 'include-body'); ?>>Embed after &lt;body&gt;</option>
+                                <option value="include-footer"<?php selected($selected, 'include-footer'); ?>>Embed before &lt;/body&gt;</option>
                             </select>
             			</td>
             			<td>

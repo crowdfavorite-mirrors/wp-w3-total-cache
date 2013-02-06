@@ -2,19 +2,21 @@
 <tr>
     <th style="width: 300px;"><label for="cdn_edgecast_account">Account #:</label></th>
     <td>
-        <input id="cdn_edgecast_account" class="w3tc-ignore-change" type="text" name="cdn.edgecast.account" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.edgecast.account')); ?>" size="60" />
+        <input id="cdn_edgecast_account" class="w3tc-ignore-change" type="text"
+           <?php $this->sealing_disabled('cdn') ?> name="cdn.edgecast.account" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.edgecast.account')); ?>" size="60" />
     </td>
 </tr>
 <tr>
     <th><label for="cdn_edgecast_token">Token:</th>
     <td>
-        <input id="cdn_edgecast_token" class="w3tc-ignore-change" type="password" name="cdn.edgecast.token" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.edgecast.token')); ?>" size="60" />
+        <input id="cdn_edgecast_token" class="w3tc-ignore-change" type="password"
+           <?php $this->sealing_disabled('cdn') ?> name="cdn.edgecast.token" value="<?php echo htmlspecialchars($this->_config->get_string('cdn.edgecast.token')); ?>" size="60" />
     </td>
 </tr>
 <tr>
 	<th><label for="cdn_edgecast_ssl"><acronym title="Secure Sockets Layer">SSL</acronym> support:</label></th>
 	<td>
-		<select id="cdn_edgecast_ssl" name="cdn.edgecast.ssl">
+		<select id="cdn_edgecast_ssl" name="cdn.edgecast.ssl" <?php $this->sealing_disabled('cdn') ?>>
 			<option value="auto"<?php selected($this->_config->get_string('cdn.edgecast.ssl'), 'auto'); ?>>Auto (determine connection type automatically)</option>
 			<option value="enabled"<?php selected($this->_config->get_string('cdn.edgecast.ssl'), 'enabled'); ?>>Enabled (always use SSL)</option>
 			<option value="disabled"<?php selected($this->_config->get_string('cdn.edgecast.ssl'), 'disabled'); ?>>Disabled (always use HTTP)</option>

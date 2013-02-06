@@ -11,13 +11,13 @@ var W3tc_Lightbox = {
             left: 0,
             width: 0,
             height: 0,
-            position: 'absolute',
+            position: 'fixed',
             'z-index': 9991,
             display: 'none'
         });
 
         jQuery('#w3tc').append(this.container);
-
+        me.resize();
         this.window.resize(function() {
             me.resize();
         });
@@ -81,13 +81,13 @@ var W3tc_Lightbox = {
         }
 
         this.container.css({
-            width: width,
-            height: height
+            top: (this.window.height() / 2 - this.container.outerHeight() / 2)>=0 ? this.window.height() / 2 - this.container.outerHeight() / 2 : 0,
+            left: (this.window.width() / 2 - this.container.outerWidth() / 2)>=0 ? this.window.width()  / 2 - this.container.outerWidth()  / 2 : 0
         });
 
         this.container.css({
-            top: this.window.scrollTop() + this.window.height() / 2 - this.container.outerHeight() / 2,
-            left: this.window.scrollLeft() + this.window.width() / 2 - this.container.outerWidth() / 2
+            width: width,
+            height: height
         });
 
         jQuery('.lightbox-content', this.container).css({
@@ -148,7 +148,7 @@ var W3tc_Overlay = {
             left: 0,
             width: 0,
             height: 0,
-            position: 'absolute',
+            position: 'fixed',
             'z-index': 9990,
             display: 'none',
             opacity: 0.6
@@ -177,8 +177,6 @@ var W3tc_Overlay = {
 
     resize: function() {
         this.container.css({
-            top: this.window.scrollTop(),
-            left: this.window.scrollLeft(),
             width: this.window.width(),
             height: this.window.height()
         });
@@ -189,7 +187,7 @@ function w3tc_lightbox_support_us(nonce) {
     W3tc_Lightbox.open({
         width: 500,
         height: 200,
-        url: 'admin.php?page=w3tc_general&w3tc_support_us&_wpnonce=' + nonce
+        url: 'admin.php?page=w3tc_dashboard&w3tc_support_us&_wpnonce=' + nonce
     });
 }
 
@@ -294,8 +292,8 @@ function w3tc_lightbox_minify_recommendations(nonce) {
                 w3tc_minify_js_theme(theme);
                 w3tc_minify_css_theme(theme);
 
-                w3tc_input_enable('.js_enabled', jQuery('#js_enabled:checked').size());
-                w3tc_input_enable('.css_enabled', jQuery('#css_enabled:checked').size());
+                w3tc_input_enable('.js_enabled', jQuery('#minify_js_enable:checked').size());
+                w3tc_input_enable('.css_enabled', jQuery('#minify_css_enable:checked').size());
 
                 lightbox.close();
             });
@@ -307,7 +305,7 @@ function w3tc_lightbox_self_test(nonce) {
     W3tc_Lightbox.open({
         width: 800,
         minHeight: 300,
-        url: 'admin.php?page=w3tc_general&w3tc_self_test&_wpnonce=' + nonce,
+        url: 'admin.php?page=w3tc_dashboard&w3tc_self_test&_wpnonce=' + nonce,
         callback: function(lightbox) {
             jQuery('.button-primary', lightbox.container).click(function() {
                 lightbox.close();
@@ -320,13 +318,31 @@ function w3tc_lightbox_cdn_s3_bucket_location(type, nonce) {
     W3tc_Lightbox.open({
         width: 500,
         height: 130,
-        url: 'admin.php?page=w3tc_general&w3tc_cdn_s3_bucket_location&type=' + type + '&_wpnonce=' + nonce,
+        url: 'admin.php?page=w3tc_dashboard&w3tc_cdn_s3_bucket_location&type=' + type + '&_wpnonce=' + nonce,
         callback: function(lightbox) {
             jQuery('.button', lightbox.container).click(function() {
                 lightbox.close();
             });
         }
     });
+}
+
+function w3tc_lightbox_oauth(type, nonce){
+    var page='admin.php?page=w3tc_dashboard&w3tc_cdn_oauth&type=' + type + '&_wpnonce=' + nonce;
+    w3tc_popup(page,'w3tcoauth',700,600);
+    /*jQuery('body').append('<div id="oauthContainer" />');
+    jQuery('#oauthContainer').dialog({
+        autoOpen: false,
+        modal: true,
+        height: 600,
+        width: 600,
+        closeText:'Close window',
+        close: function(){
+            jQuery(this).remove();
+        }
+    });
+    jQuery("#oauthContainer").html('<iframe id="modalIframeId" width="100%" height="100%"  marginWidth="0" marginHeight="0" frameBorder="0" scrolling="auto" />').dialog("open");
+    jQuery("#modalIframeId").attr("src",page); /**/
 }
 
 jQuery(function() {
@@ -353,6 +369,13 @@ jQuery(function() {
         }
 
         w3tc_lightbox_cdn_s3_bucket_location(type, nonce);
+        return false;
+    });
+
+    jQuery('.button-cdn-oauth').click(function() {
+        var type = jQuery(this).metadata().type;
+        var nonce = jQuery(this).metadata().nonce;
+        w3tc_lightbox_oauth(type, nonce);
         return false;
     });
 });

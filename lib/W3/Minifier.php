@@ -43,14 +43,7 @@ class W3_Minifier {
      * PHP5-style constructor
      */
     function __construct() {
-        $this->_config = & w3_instance('W3_Config');
-    }
-
-    /**
-     * PHP4-style constructor
-     */
-    function W3_Minifier() {
-        $this->__construct();
+        $this->_config = w3_instance('W3_Config');
     }
 
     /**
@@ -127,46 +120,46 @@ class W3_Minifier {
     function init($engine) {
         switch ($engine) {
             case 'js':
-                require_once W3TC_LIB_MINIFY_DIR . '/JSMin.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/JSMin.php');
                 break;
 
             case 'css':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSS.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS.php');
                 break;
 
             case 'yuijs':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/YUICompressor.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/YUICompressor.php');
 
                 Minify_YUICompressor::setPathJava($this->_config->get_string('minify.yuijs.path.java'));
                 Minify_YUICompressor::setPathJar($this->_config->get_string('minify.yuijs.path.jar'));
                 break;
 
             case 'yuicss':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/YUICompressor.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/YUICompressor.php');
 
                 Minify_YUICompressor::setPathJava($this->_config->get_string('minify.yuicss.path.java'));
                 Minify_YUICompressor::setPathJar($this->_config->get_string('minify.yuicss.path.jar'));
                 break;
 
             case 'ccjs':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/ClosureCompiler.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/ClosureCompiler.php');
 
                 Minify_ClosureCompiler::setPathJava($this->_config->get_string('minify.ccjs.path.java'));
                 Minify_ClosureCompiler::setPathJar($this->_config->get_string('minify.ccjs.path.jar'));
                 break;
 
             case 'csstidy':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSSTidy.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSSTidy.php');
                 break;
 
             case 'html':
             case 'htmlxml':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/HTML.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/HTML.php');
                 break;
 
             case 'htmltidy':
             case 'htmltidyxml':
-                require_once W3TC_LIB_MINIFY_DIR . '/Minify/HTMLTidy.php';
+                w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/HTMLTidy.php');
                 break;
         }
     }
@@ -265,7 +258,7 @@ class W3_Minifier {
         }
 
         if ($this->_config->get_boolean('browsercache.enabled') && ($this->_config->get_boolean('browsercache.cssjs.replace') || $this->_config->get_boolean('browsercache.html.replace') || $this->_config->get_boolean('browsercache.other.replace'))) {
-            $w3_plugin_browsercache = & w3_instance('W3_Plugin_BrowserCache');
+            $w3_plugin_browsercache = w3_instance('W3_Plugin_BrowserCache');
 
             $options = array_merge($options, array(
                 'browserCacheId' => $w3_plugin_browsercache->get_replace_id(),
@@ -274,7 +267,7 @@ class W3_Minifier {
         }
 
         if ($this->_config->get_boolean('cdn.enabled') && $this->_config->get_boolean('cdn.minify.enable')) {
-            $w3_plugin_cdn =& w3_instance('W3_Plugin_CdnCommon');
+            $w3_plugin_cdn = w3_instance('W3_Plugin_CdnCommon');
             $cdn =& $w3_plugin_cdn->get_cdn();
 
             $options = array_merge($options, array(

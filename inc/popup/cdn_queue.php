@@ -33,6 +33,9 @@
 	<p>
 		<a href="admin.php?page=w3tc_cdn&amp;w3tc_cdn_queue&amp;cdn_queue_tab=upload&amp;cdn_queue_action=empty&amp;cdn_queue_type=<?php echo W3TC_CDN_COMMAND_UPLOAD; ?>&amp;_wpnonce=<?php echo $nonce; ?>" class="cdn_queue_empty">Empty upload queue</a>
 	</p>
+	<p>
+		<a href="admin.php?page=w3tc_cdn&amp;w3tc_cdn_queue&amp;cdn_queue_tab=upload&amp;cdn_queue_action=process&amp;_wpnonce=<?php echo $nonce; ?>">Process CDN queue now</a>
+	</p>
 <?php else: ?>
 	<p class="empty">Upload queue is empty</p>
 <?php endif; ?>

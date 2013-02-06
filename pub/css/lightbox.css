@@ -2,7 +2,15 @@
     background: #666;
 }
 
-.lightbox {
+.ui-widget-overlay {
+    background-color: #666;
+    position: absolute;
+    opacity: 0.6;
+    top:0;
+    left:0;
+}
+
+.lightbox,.ui-dialog {
     position: absolute;
     background: #fdfdfd;
     padding: 20px;
@@ -16,7 +24,7 @@
     margin-top: 0;
 }
 
-.lightbox-close {
+.lightbox-close,.ui-dialog-titlebar-close  {
     cursor: pointer;
     position: absolute;
     text-decoration: underline;
@@ -25,9 +33,7 @@
 }
 
 .lightbox-loader {
-    background-image: url(../img/loader.gif);
-    background-position: center center;
-    background-repeat: no-repeat;
+    background: url(../img/wpspin_light.gif) no-repeat center center;
 }
 
 .lightbox-content {

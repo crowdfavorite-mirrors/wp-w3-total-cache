@@ -197,7 +197,7 @@ abstract class Minify_Controller_Base {
      * @return null
      */
     protected function log($msg) {
-        require_once W3TC_LIB_MINIFY_DIR . '/Minify/Logger.php';
+        w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Logger.php');
         Minify_Logger::log($msg);
     }
 }

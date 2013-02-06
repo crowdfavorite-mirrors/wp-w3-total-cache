@@ -7,8 +7,8 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_INC_DIR . '/functions/file.php';
-require_once W3TC_LIB_W3_DIR . '/Plugin.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+w3_require_once(W3TC_LIB_W3_DIR . '/Plugin.php');
 
 /**
  * Class W3_Plugin_TotalCacheActivation
@@ -19,97 +19,38 @@ class W3_Plugin_TotalCacheActivation extends W3_Plugin {
      *
      * @return void
      */
-    function activate() {
-        require_once W3TC_INC_DIR . '/functions/activation.php';
+    function activate($network_wide) {
+        w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
 
-        /**
-         * Disable buggy sitewide activation in WPMU and WP 3.0
-         */
-        if ((w3_is_wpmu() && isset($_GET['sitewide'])) || (w3_is_multisite() && isset($_GET['networkwide']))) {
-            w3_network_activate_error();
-        }
-
-        /**
-         * Check installation files
-         */
-        $files = array(
-            W3TC_INSTALL_FILE_ADVANCED_CACHE,
-            W3TC_INSTALL_FILE_DB,
-            W3TC_INSTALL_FILE_OBJECT_CACHE
-        );
-
-        $nonexistent_files = array();
-
-        foreach ($files as $file) {
-            if (!file_exists($file)) {
-                $nonexistent_files[] = $file;
-            }
-        }
-
-        if (count($nonexistent_files)) {
-            $error = sprintf('Unfortunately core file(s): (<strong>%s</strong>) are missing, so activation will fail. Please re-start the installation process from the beginning.', implode(', ', $nonexistent_files));
-
-            w3_activate_error($error);
-        }
-
-        if (!@is_dir(W3TC_CONTENT_DIR) && !@mkdir(W3TC_CONTENT_DIR)) {
-            w3_writable_error(W3TC_CONTENT_DIR);
-        }
-
-        if (!@is_dir(W3TC_CACHE_FILE_DBCACHE_DIR) && !@mkdir(W3TC_CACHE_FILE_DBCACHE_DIR)) {
-            w3_writable_error(W3TC_CACHE_FILE_DBCACHE_DIR);
-        }
-
-        if (!@is_dir(W3TC_CACHE_FILE_OBJECTCACHE_DIR) && !@mkdir(W3TC_CACHE_FILE_OBJECTCACHE_DIR)) {
-            w3_writable_error(W3TC_CACHE_FILE_OBJECTCACHE_DIR);
-        }
-
-        if (!@is_dir(W3TC_CACHE_FILE_PGCACHE_DIR) && !@mkdir(W3TC_CACHE_FILE_PGCACHE_DIR)) {
-            w3_writable_error(W3TC_CACHE_FILE_PGCACHE_DIR);
-        }
-
-        if (!@is_dir(W3TC_CACHE_FILE_MINIFY_DIR) && !@mkdir(W3TC_CACHE_FILE_MINIFY_DIR)) {
-            w3_writable_error(W3TC_CACHE_FILE_MINIFY_DIR);
-        }
-
-        if (!@is_dir(W3TC_LOG_DIR) && !@mkdir(W3TC_LOG_DIR)) {
-            w3_writable_error(W3TC_LOG_DIR);
-        }
-
-        if (!@is_dir(W3TC_TMP_DIR) && !@mkdir(W3TC_TMP_DIR)) {
-            w3_writable_error(W3TC_TMP_DIR);
-        }
-
-        if (w3_is_network() && file_exists(W3TC_CONFIG_MASTER_PATH)) {
-            /**
-             * For multisite load master config
-             */
-            $this->_config->load_master();
-
-            if (!$this->_config->save(false)) {
-                w3_writable_error(W3TC_CONFIG_PATH);
-            }
-        } elseif (!file_exists(W3TC_CONFIG_PATH)) {
-            /**
-             * Set default settings
-             */
-            $this->_config->set_defaults();
-
-            /**
-             * If config doesn't exist enable preview mode
-             */
-            if (!$this->_config->save(true)) {
-                w3_writable_error(W3TC_CONFIG_PREVIEW_PATH);
+        if (w3_is_network()) {
+            if ($network_wide) {
+                // we are in network activation
+            } else if ($_GET['action'] == 'error_scrape' && 
+                    strpos($_SERVER['REQUEST_URI'], '/network/') !== false) {
+                // workaround for error_scrape page called after error
+                // really we are in network activation and going to throw some error
+            } else {
+                echo 'Please <a href="' . network_admin_url('plugins.php') . '">network activate</a> W3 Total Cache when using WordPress Multisite.';
+                die;
             }
         }
 
         /**
-         * Save blognames into file
+         * Create cache folder and extension files
          */
-        if (w3_is_network() && !w3_is_subdomain_install()) {
-            if (!w3_save_blognames()) {
-                w3_writable_error(W3TC_BLOGNAMES_PATH);
+        try {
+            w3_activation_create_required_files();
+            
+            if (!$this->_config->own_config_exists()) {
+                $this->_config->save();
             }
+            
+            // save admin config
+            $admin_config = w3_instance('W3_ConfigAdmin');
+            if (!$admin_config->own_config_exists())
+                $admin_config->save();
+        } catch (Exception $e) {
+            w3_activation_error_on_exception($e);
         }
 
         delete_option('w3tc_request_data');
@@ -124,19 +65,6 @@ class W3_Plugin_TotalCacheActivation extends W3_Plugin {
     function deactivate() {
         delete_option('w3tc_request_data');
 
-        // keep for other blogs
-        if (!$this->locked()) {
-            @unlink(W3TC_BLOGNAMES_PATH);
-        }
-
-        @unlink(W3TC_CONFIG_PREVIEW_PATH);
-
-        w3_rmdir(W3TC_TMP_DIR);
-        w3_rmdir(W3TC_LOG_DIR);
-        w3_rmdir(W3TC_CACHE_FILE_MINIFY_DIR);
-        w3_rmdir(W3TC_CACHE_FILE_PGCACHE_DIR);
-        w3_rmdir(W3TC_CACHE_FILE_DBCACHE_DIR);
-        w3_rmdir(W3TC_CACHE_FILE_OBJECTCACHE_DIR);
-        w3_rmdir(W3TC_CONTENT_DIR);
+        w3_rmdir(W3TC_CACHE_DIR);
     }
 }

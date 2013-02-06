@@ -3,9 +3,6 @@
 <h4>
 	<a href="<?php echo $item['link']; ?>"><?php echo $item['title']; ?></a>
 </h4>
-<p>
-	<?php echo $item['description']; ?>
-</p>
 <?php endforeach; ?>
 
 <p style="text-align: center;">

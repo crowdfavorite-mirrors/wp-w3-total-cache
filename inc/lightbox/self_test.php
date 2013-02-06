@@ -3,8 +3,8 @@
 if (!defined('W3TC')) 
     die();
 
-require_once W3TC_INC_DIR . '/functions/file.php';
-require_once W3TC_INC_DIR . '/functions/rule.php';
+w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+w3_require_once(W3TC_INC_DIR . '/functions/rule.php');
  
 ?>
 <h3>Compatibility Test</h3>
@@ -13,10 +13,10 @@ require_once W3TC_INC_DIR . '/functions/rule.php';
     <legend>Legend</legend>
 
     <p>
-        <code>Installed</code>: Functionality will work properly<br />
-        <code>Not detected</code>: May be installed, but cannot be automatically confirmed<br />
+        <code>Installed</code>: Functionality will work properly.<br />
+        <code>Not detected</code>: May be installed, but cannot be automatically confirmed.<br />
         <code>Ok</code>: Current value is acceptable.<br />
-        <code>Yes/No</code>: The value was successful detected.
+        <code>Yes / No</code>: The value was successful detected.
     </p>
 </fieldset>
 
@@ -62,7 +62,7 @@ require_once W3TC_INC_DIR . '/functions/rule.php';
             <?php else: ?>
             <code>Not installed</code>
             <?php endif; ?>
-            <span class="w3tc-self-test-hint">(required for Self-hosted (FTP) CDN support)</span>
+            <span class="w3tc-self-test-hint">(required for Self-hosted (<acronym title="File Transfer Protocol">FTP</acronym>) <acronym title="Content Delivery Network">CDN</acronym> support)</span>
         </li>
 
         <li>
@@ -138,7 +138,7 @@ require_once W3TC_INC_DIR . '/functions/rule.php';
             <?php else:  ?>
             <code>Not installed</code>
             <?php endif; ?>
-            <span class="w3tc-self-test-hint">(required for CDN support)</span>
+            <span class="w3tc-self-test-hint">(required for <acronym title="Content Delivery Network">CDN</acronym> support)</span>
         </li>
 
         <li>
@@ -150,7 +150,7 @@ require_once W3TC_INC_DIR . '/functions/rule.php';
             <?php else: ?>
             <code>Not installed</code>
             <?php endif; ?>
-            <span class="w3tc-self-test-hint">(required for NetDNA purge support)</span>
+            <span class="w3tc-self-test-hint">(required for NetDNA / MaxCDN <acronym title="Content Delivery Network">CDN</acronym> purge support)</span>
         </li>
 
         <li>
@@ -215,11 +215,23 @@ require_once W3TC_INC_DIR . '/functions/rule.php';
                     <?php else: ?>
                     <code>Not detected</code>
                     <?php endif; ?>
-                    <span class="w3tc-self-test-hint">(required for Page Cache (enhanced mode) and Browser Cache)</span>
+                    <span class="w3tc-self-test-hint">(required for disk enhanced Page Cache and Browser Cache)</span>
                 </li>
             <?php endforeach; ?>
         <?php endif; ?>
     </ul>
+    <?php $additional_checks = apply_filters('w3tc_compatibility_test', __return_empty_array());
+    if ($additional_checks):?>
+    <h4><?php _e('Additional modules','w3-total-cache')?></h4>
+    <ul>
+    <?php
+    foreach($additional_checks as $check)
+        echo '<li>', $check, '</li>';
+    ?>
+    </ul>
+    <?php
+    endif;
+    ?>
 
     <h4>WordPress Resources</h4>
 

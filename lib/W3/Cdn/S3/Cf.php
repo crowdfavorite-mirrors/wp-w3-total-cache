@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
 define('W3TC_CDN_CF_TYPE_S3', 's3');
 define('W3TC_CDN_CF_TYPE_CUSTOM', 'custom');
 
-require_once W3TC_LIB_W3_DIR . '/Cdn/S3.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Cdn/S3.php');
 
 /**
  * Class W3_Cdn_S3_Cf
@@ -34,15 +34,6 @@ class W3_Cdn_S3_Cf extends W3_Cdn_S3 {
         ), $config);
 
         parent::__construct($config);
-    }
-
-    /**
-     * PHP4 Constructor
-     *
-     * @param array $config
-     */
-    function W3_Cdn_S3_Cf($config = array()) {
-        $this->__construct($config);
     }
 
     /**
@@ -80,7 +71,7 @@ class W3_Cdn_S3_Cf extends W3_Cdn_S3 {
             return false;
         }
 
-        @$this->_s3 = & new S3($this->_config['key'], $this->_config['secret'], false);
+        $this->_s3 = new S3($this->_config['key'], $this->_config['secret'], false);
 
         return true;
     }
@@ -198,7 +189,8 @@ class W3_Cdn_S3_Cf extends W3_Cdn_S3 {
 
         $paths = array();
 
-        foreach ($files as $local_file => $remote_file) {
+        foreach ($files as $file) {
+            $remote_file = $file['remote_path'];
             $paths[] = '/' . $remote_file;
         }
 

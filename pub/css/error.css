@@ -28,7 +28,7 @@ a:hover {
 .button, input[type="button"], input[type="submit"] {
     font-size: 11px;
     line-height: 16px;
-    background: #f2f2f2 url(../../../../../wp-admin/images/white-grad.png) repeat-x scroll left top;
+    background: #f2f2f2 url(../img/white-grad.png) repeat-x scroll left top;
     border: 1px solid #bbb;
     color: #464646;
     text-shadow: 0 1px 0 #fff;
@@ -45,5 +45,5 @@ a:hover {
 }
 
 .button:active, input[type="button"]:active, input[type="submit"]:active {
-    background: #f2f2f2 url(../../../../../wp-admin/images/white-grad-active.png) repeat-x scroll left top;
+    background: #f2f2f2 url(../img/white-grad-active.png) repeat-x scroll left top;
 }

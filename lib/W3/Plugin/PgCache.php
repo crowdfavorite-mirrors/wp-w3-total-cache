@@ -7,7 +7,7 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_LIB_W3_DIR . '/Plugin.php';
+w3_require_once(W3TC_LIB_W3_DIR . '/Plugin.php');
 
 /**
  * Class W3_Plugin_PgCache
@@ -40,20 +40,23 @@ class W3_Plugin_PgCache extends W3_Plugin {
             'on_post_edit'
         ), 0);
 
-        add_action('publish_post', array(
-            &$this,
-            'on_post_edit'
-        ), 0);
-
-        add_action('edit_post', array(
+        add_action('wp_trash_post', array(
             &$this,
             'on_post_change'
         ), 0);
 
-        add_action('delete_post', array(
+        add_action('save_post', array(
             &$this,
-            'on_post_edit'
+            'on_post_change'
         ), 0);
+
+        global $wp_version;
+        if (version_compare($wp_version,'3.5', '>=')) {
+            add_action('clean_post_cache', array(
+                &$this,
+                'on_post_change'
+            ), 0, 2);
+        }
 
         add_action('comment_post', array(
             &$this,
@@ -90,24 +93,80 @@ class W3_Plugin_PgCache extends W3_Plugin {
             'on_change'
         ), 0);
 
+        add_action('wp_update_nav_menu', array(
+            &$this,
+            'on_change'
+        ), 0);
+
         add_action('edit_user_profile_update', array(
             &$this,
             'on_change'
         ), 0);
+        
+        add_filter('comment_cookie_lifetime', array(
+            &$this,
+            'comment_cookie_lifetime'
+        ));
+
+        add_action('w3tc_purge_from_pgcache', array(
+            &$this,
+            'on_post_change'
+        ), 0);
+
+        if (w3_is_multisite()) {
+            add_action('delete_blog', array(
+                &$this,
+                'on_change'
+            ), 0);
+        }
+
+        add_action('delete_post', array(
+            &$this,
+            'on_post_edit'
+        ), 0);
+
+        if ($this->_config->get_string('pgcache.engine') == 'file_generic') {
+            add_action('wp_logout', array (
+                &$this,
+                'on_logout'
+            ), 0);
+
+            add_action('wp_login', array (
+                &$this,
+                'on_login'
+            ), 0);
+        }
+
+        add_filter('wp_redirect', array(
+            &$this,
+            'on_redirect_cleanup'
+        ), 0, 1);
+
+        add_action('sns_actions_executed', array(
+            &$this,
+            'flush_post_cleanup'
+        ), 0);
+
+        if ($this->_config->get_boolean('pgcache.prime.post.enabled', false)) {
+            add_action('publish_post', array(
+                &$this,
+                'prime_post'
+            ), 30);
+        }
     }
 
     /**
-     * Activate plugin action (called by W3_PluginProxy)
+     * Activate plugin action (called by W3_Plugins)
      */
     function activate() {
         $this->get_admin()->activate();
     }
 
     /**
-     * Deactivate plugin action (called by W3_PluginProxy)
+     * Deactivate plugin action (called by W3_Plugins)
      */
     function deactivate() {
-        $this->get_admin()->deactivate();
+        return $this->get_admin()->deactivate();
     }
 
     /**
@@ -126,7 +185,7 @@ class W3_Plugin_PgCache extends W3_Plugin {
      * @return void
      */
     function prime($start = 0) {
-        $this->get_admin()->prime();
+        $this->get_admin()->prime($start);
     }
 
     /**
@@ -134,7 +193,7 @@ class W3_Plugin_PgCache extends W3_Plugin {
      *
      * @return W3_Plugin_PgCacheAdmin
      */
-    function &get_admin() {
+    function get_admin() {
         return w3_instance('W3_Plugin_PgCacheAdmin');
     }
 
@@ -177,18 +236,40 @@ class W3_Plugin_PgCache extends W3_Plugin {
      * Post change action
      *
      * @param integer $post_id
+     * @param null $post
+     * @return void
      */
-    function on_post_change($post_id) {
+    function on_post_change($post_id, $post = null) {
         static $flushed_posts = array();
-
         if (!in_array($post_id, $flushed_posts)) {
-            $w3_pgcache = & w3_instance('W3_PgCacheFlush');
-            $w3_pgcache->flush_post($post_id);
+
+            if (is_null($post))
+                $post = $post_id;
+
+            if (!w3_is_flushable_post($post, 'pgcache', $this->_config)) {
+                return;
+            }
+
+            $w3_cacheflush = w3_instance('W3_CacheFlush');
+            $w3_cacheflush->pgcache_flush_post($post_id);
 
             $flushed_posts[] = $post_id;
         }
     }
 
+    /**
+     * 
+     * @param integer $lifetime
+     * @return integer
+     */
+    function comment_cookie_lifetime($lifetime) {
+        $l = $this->_config->get_integer('pgcache.comment_cookie_ttl');
+        if ($l != -1)
+            return $l;
+        else
+            return $lifetime;
+    }
+    
     /**
      * Comment change action
      *
@@ -224,8 +305,49 @@ class W3_Plugin_PgCache extends W3_Plugin {
         static $flushed = false;
 
         if (!$flushed) {
-            $w3_pgcache = & w3_instance('W3_PgCacheFlush');
-            $w3_pgcache->flush();
+            $w3_pgcache = w3_instance('W3_CacheFlush');
+            $w3_pgcache->pgcache_flush();
         }
+    }
+
+    /**
+     * Add cookie on logout to circumvent pagecache due to browser cache resulting in 304s
+     */
+    function on_logout() {
+        setcookie('w3tc_logged_out');
+    }
+
+    /**
+     * Remove logout cookie on logins
+     */
+    function on_login() {
+        if (isset($_COOKIE['w3tc_logged_out']))
+            setcookie('w3tc_logged_out', '', 1);
+    }
+
+    /**
+     * @param $location
+     * @return mixed
+     */
+    function on_redirect_cleanup($location) {
+        $this->flush_post_cleanup();
+        return $location;
+    }
+
+    /**
+     * Runs after multiple post edits
+     */
+    function flush_post_cleanup() {
+        $w3_pgcache = w3_instance('W3_PgCacheFlush');
+        $w3_pgcache->flush_post_cleanup();
+    }
+
+    /**
+     * @param $post_id
+     * @return boolean
+     */
+    function prime_post($post_id) {
+        $w3_pgcache = w3_instance('W3_CacheFlush');
+        return $w3_pgcache->prime_post($post_id);
     }
 }

@@ -1,5 +1,5 @@
 <?php if (!defined('W3TC')) die(); ?>
-<?php echo $this->postbox_header('Required information'); ?>
+<?php echo $this->postbox_header('Required Information'); ?>
 <table class="form-table">
     <tr>
         <th>Request type:</th>
@@ -67,11 +67,21 @@
 </table>
 <?php echo $this->postbox_footer(); ?>
 
-<?php echo $this->postbox_header('Additional information'); ?>
+<?php echo $this->postbox_header('Additional Information'); ?>
 <table class="form-table">
     <tr>
         <th><label for="support_phone">Phone:</label></th>
         <td><input id="support_phone" type="text" name="phone" value="<?php echo htmlspecialchars($phone); ?>" size="80" /></td>
+    </tr>
+    <tr>
+        <th colspan="2">
+            <label for="support_subscribe_customer">Would you like to be notified when products are announced and updated?</label>
+        </th>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <input id="support_subscribe_customer" name="subscribe_customer" type="checkbox" value="Yes" <?php checked($subscribe_customer, true) ?> /> Yes, please notify me.
+        </td>
     </tr>
 </table>
 <?php echo $this->postbox_footer(); ?>

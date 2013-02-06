@@ -7,7 +7,7 @@ if (!defined('W3TC')) {
     die();
 }
 
-require_once W3TC_LIB_MINIFY_DIR . '/Minify/Controller/Base.php';
+w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/Controller/Base.php');
 
 /**
  * Controller class for serving a single HTML page
@@ -76,8 +76,8 @@ class Minify_Controller_Page extends Minify_Controller_Base {
         if ($this->_loadCssJsMinifiers) {
             // Minify will not call for these so we must manually load
             // them when Minify/HTML.php is called for.
-            require_once W3TC_LIB_MINIFY_DIR . '/Minify/CSS.php';
-            require_once W3TC_LIB_MINIFY_DIR . '/JSMin.php';
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS.php');
+            w3_require_once(W3TC_LIB_MINIFY_DIR . '/JSMin.php');
         }
         parent::loadMinifier($minifierCallback); // load Minify/HTML.php
     }
