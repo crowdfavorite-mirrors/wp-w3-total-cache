@@ -212,7 +212,7 @@ class W3_Plugins {
                 $ftp_form = $e->ftp_form();
         }
         foreach($dirs as $folder)
-            if (file_exists($folder))
+            if (@is_dir($folder))
                 $errors[] = sprintf('Delete folder: <strong>%s</strong>',$folder);
 
         return array('errors' => $errors, 'ftp_form' => $ftp_form);

@@ -8,9 +8,9 @@
     <?php switch ($this->_config->get_string('cdn.engine')):
         case 'cotendo': ?>
         <ul>
-            <li><em>wp-content/themes/twentyten/images/headers/</em> &mdash; the folder itself (only when accessed directly without any file).</li>
-            <li><em>wp-content/themes/twentyten/images/headers/*.</em> &mdash; all files in the folder with no extension, with all parameter variations.</li>
-            <li><em>wp-content/themes/twentyten/images/headers/*.jpg</em> &mdash; all files in the folder whose extension is "jpg".</li>
+            <li><em>wp-content/themes/twentyten/images/headers/</em> &mdash; the directory itself (only when accessed directly without any file).</li>
+            <li><em>wp-content/themes/twentyten/images/headers/*.</em> &mdash; all files in the directory with no extension, with all parameter variations.</li>
+            <li><em>wp-content/themes/twentyten/images/headers/*.jpg</em> &mdash; all files in the directory whose extension is "jpg".</li>
             <li><em>wp-content/themes/twentyten/images/headers/path</em> &mdash; the specific file (when the file does not have an extension), and without parameters.</li>
             <li><em>wp-content/themes/twentyten/images/headers/path.jpg</em> &mdash; the specific file with its extension, and without parameters.</li>
             <li><em>wp-content/themes/twentyten/images/headers/path.jpg?*</em> &mdash; the specific file with its extension, with all variation of parameters.</li>

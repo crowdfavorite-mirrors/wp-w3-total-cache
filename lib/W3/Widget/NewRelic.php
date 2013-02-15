@@ -85,7 +85,7 @@ class W3_Widget_NewRelic extends W3_Plugin {
         $slowest_page_loads = array();
         $slowest_webtransaction = array();
         $slowest_database = array();
-        $subscription_lvl = 'unknown. ';
+        $subscription_lvl = __('unknown', 'w3-total-cache');
         $can_use_metrics = false;
         if ($new_relic_configured && $new_relic_enabled) {
             try {

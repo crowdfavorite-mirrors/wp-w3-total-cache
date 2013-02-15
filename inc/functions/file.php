@@ -207,7 +207,7 @@ function w3_get_open_basedirs() {
 
     foreach ($open_basedirs as $open_basedir) {
         $open_basedir = trim($open_basedir);
-        if ($open_basedir != '') {
+        if (!empty($open_basedir) && $open_basedir != '') {
             $result[] = w3_realpath($open_basedir);
         }
     }
@@ -240,14 +240,14 @@ function w3_check_open_basedir($path) {
 
 function w3_get_file_permissions($file) {
     if (function_exists('fileperms') && $fileperms = @fileperms($file)) {
-        $fileperms = sprintf('0%o', 0777 & $fileperms);
+        $fileperms = 0777 & $fileperms;
     } else {
         clearstatcache();
         $stat=@stat($file);
         if ($stat)
-            $fileperms = sprintf("0%o", 0777 & $stat['mode']);
+            $fileperms = 0777 & $stat['mode'];
         else
-            $fileperms = 'unknown';
+            $fileperms = 0;
     }
     return $fileperms;
 }

@@ -156,7 +156,7 @@ class W3_ConfigWriter {
         if (!$this->_data->write($filename)) {
             if (is_dir(W3TC_CONFIG_DIR)) {
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_throw_on_write_error($filename);
+                w3_throw_on_write_error($filename, array(W3TC_CACHE_TMP_DIR, W3TC_CONFIG_DIR));
             }
         } else {
             $this->flush_apc($filename);

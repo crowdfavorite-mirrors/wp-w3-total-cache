@@ -249,7 +249,7 @@
                 <th><label>Compatibility mode</label></th>
                 <td>
                     <?php $this->checkbox('pgcache.compatibility') ?> Enable compatibility mode</label><br />
-                    <span class="description">Decreases performance by ~20% at scale in exchange for increasing interoperability with more hosting environemtns and WordPress idiosyncracies. This option should be enabled for most sites.</span>
+                    <span class="description">Decreases performance by ~20% at scale in exchange for increasing interoperability with more hosting environemnts and WordPress idiosyncracies. This option should be enabled for most sites.</span>
                 </td>
             </tr>
             <?php endif; ?>

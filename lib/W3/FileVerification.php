@@ -56,7 +56,7 @@ class W3_FileVerification {
                 , W3TC_ADDIN_FILE_OBJECT_CACHE);
         }
 
-        if ($this->objectcache_check_old_add_in() || !$this->objectcache_check()) {
+        if ($this->objectcache_installed() && ($this->objectcache_check_old_add_in() || !$this->objectcache_check())) {
             $addin_files[W3TC_INSTALL_FILE_OBJECT_CACHE] = W3TC_ADDIN_FILE_OBJECT_CACHE;
             $addin_files_messages[] = sprintf('Object caching will not function properly: %s is not latest version.'
                 , W3TC_ADDIN_FILE_OBJECT_CACHE);

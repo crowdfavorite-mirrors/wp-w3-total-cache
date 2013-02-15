@@ -279,7 +279,7 @@
     cursor: auto;
 }
 
-#pgcache_reject_roles label {
+#pgcache_reject_roles label, #newrelic_accept_roles label, #cdn_reject_roles label  {
     margin-right: 15px;
 }
 

@@ -973,11 +973,9 @@ class W3_Minify {
 
         $imploded = implode(',',$input);
         $config = w3_instance('W3_Config');
-        if (strtoupper(substr(PHP_OS, 0, 3)) != 'WIN') {
-            if (function_exists('gzdeflate') || function_exists('gzcompress'))
-                $fn_length = $config->get_integer('minify.auto.filename_length',251);
-            else
-                $fn_length = 251;
+        if (!W3TC_WIN) {
+            $fn_length = $config->get_integer('minify.auto.filename_length',150);
+            $fn_length = $fn_length>150 ? 150 : $fn_length;
         } else {
             $dir = w3_cache_blog_dir('minify');
             $fn_length = 255-strlen($dir);

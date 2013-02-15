@@ -3,7 +3,7 @@ Contributors: fredericktownes
 Tags: wpo, web performance optimization, performance, availability, scaling, scalability, user experience, cache, caching, page cache, css cache, js cache, db cache, disk cache, disk caching, database cache, http compression, gzip, deflate, minify, cdn, content delivery network, media library, performance, speed, multiple hosts, css, merge, combine, unobtrusive javascript, compress, optimize, optimizer, javascript, js, cascading style sheet, plugin, yslow, yui, google, google rank, google page speed, mod_pagespeed, new relic, newrelic, aws, s3, cloudfront, sns, elasticache, rds, flash media server, amazon web services, cloud files, rackspace, akamai, max cdn, netdna, limelight, cloudflare, mod_cloudflare, microsoft, microsoft azure, iis, nginx, litespeed, apache, varnish, xcache, apc, eacclerator, wincache, mysql, w3 total cache, batcache, wp cache, wp super cache, quick cache, wp minify, bwp-minify, buddypress
 Requires at least: 2.8
 Tested up to: 3.5.1
-Stable tag: 0.9.2.7
+Stable tag: 0.9.2.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,7 +13,7 @@ Easy Web Performance Optimization (WPO) using caching: browser, page, object, da
 
 The **only** WordPress Performance Optimization (WPO) framework; designed to improve user experience and page speed.
 
-Recommended by web hosts like: Page.ly, DreamHost, MediaTemple, Go Daddy, Host Gator and countless more.
+Recommended by web hosts like: Page.ly, Synthesis, DreamHost, MediaTemple, Go Daddy, Host Gator and countless more.
 
 Trusted by countless companies like: AT&T, stevesouders.com, mattcutts.com, mashable.com, smashingmagazine.com, makeuseof.com, yoast.com, kiss925.com, pearsonified.com, lockergnome.com, johnchow.com, ilovetypography.com, webdesignerdepot.com, css-tricks.com and tens of thousands of others.
 
@@ -731,11 +731,21 @@ It's quite difficult to recall all of the innovators that have shared their thou
 Please reach out to all of these people and support their projects if you're so inclined.
 
 == Changelog ==
+= 0.9.2.8 =
+* Fixed /tmp file creation issue when saving settings
+* Fixed an issue with auto minify
+* Fixed an issue with New Relic API key verification
+* Fixed uncommon issue with require ObjectCache failing
+* Fixed uncommon open_basedir verification issue
+* Improved notification handling by modified WordPress FileSystem API implementation
+* Added PHP file handling to support cases not covered by default WordPress FileSystem API
+
+
 = 0.9.2.7 =
 * Fixed config file write in more hosting environments
 * Fixed legacy config file import on servers with hardened file permissions
 * Fixed page cache write cache rules in some environments
-* Fixed retina images
+* Fixed HiDPI images
 * Fixed false positive notifications when permissions are not changed or same
 * Fixed minify help
 * Improved upgrade notifications
@@ -849,7 +859,7 @@ Please reach out to all of these people and support their projects if you're so 
 * Improved minify filename path generation
 * Improved minify custom placement usage
 * Improved PHP 5 compability by removing deprecated functionality
-* Improved WP 3.4 and 3.5 compability by removing deprecated functions usage
+* Improved WordPress 3.4 and 3.5 compability by removing deprecated functions usage
 * Improved plugin by removing unnecessary ob_starts
 * Improved minify usage by returning old minify files while generating new
 * Improved update procedure by removing need to manually deactivate and reactivate plugin
@@ -1224,5 +1234,5 @@ Please reach out to all of these people and support their projects if you're so 
 
 == Upgrade Notice ==
 
-= 0.9.2.6 =
-Thanks for using W3 Total Cache! As always, this update is very strongly recommended. This release contains fixes for users improving compatibility across more hosting environments. We appreciate your patience and help as we move toward making updates more seamless. Unfortunately, it's not easy to upgrade "low level" functionality like server configurations. We do it because we're trying to give you the advantages that large corporations have, for free.
+= 0.9.2.8 =
+Thanks for using W3 Total Cache! As always, this update is very strongly recommended. The recent releases attempted to use WordPress' built in support for managing files and folders and clearly has not worked. Since W3TC is a caching plugin, file management is a critical issue that will cause lots of issues if it doesn't work perfectly. This release is hopefully the last attempt to restore file management back to the reliability of previous versions (0.9.2.4 etc). We realize that having *any* problems is not acceptable, but caching means changing server behavior so while this plugin is still in pre-release we're trying to work on learning the lessons.

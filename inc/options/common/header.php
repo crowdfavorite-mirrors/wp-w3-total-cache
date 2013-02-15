@@ -17,16 +17,17 @@ jQuery(function($) {
     </div>
     <?php endforeach; ?>
 
-    <?php if ($this->_rule_errors_autoinstall != ''): ?>
+    <?php if (!$this->_disable_cache_write_notification && $this->_rule_errors_autoinstall != ''): ?>
     <div class="error">
         <p>
             The following configuration changes are needed to ensure optimal performance:<br />
+        </p>
             <ul style="padding-left: 20px">
                 <?php foreach ($this->_rule_errors as $error): ?>
                     <li><?php echo $error[0]; ?></li>
                 <?php endforeach; ?>
             </ul>
-        </p>
+
         <p>
             If permission allow this can be done automatically, by clicking here:
             <?php echo $this->_rule_errors_autoinstall ?>.
@@ -35,16 +36,17 @@ jQuery(function($) {
     </div>
     <?php endif; ?>
 
-    <?php if ($this->_rule_errors_root): ?>
+    <?php if (!$this->_disable_file_operation_notification && $this->_rule_errors_root): ?>
     <div class="error">
         <p>
             The following configuration changes are needed to ensure optimal performance:<br />
+        </p>
         <ul style="padding-left: 20px">
             <?php foreach ($this->_rule_errors_root as $error): ?>
             <li><?php echo $error; ?></li>
             <?php endforeach; ?>
         </ul>
-        </p>
+
     <?php if (isset($this->_ftp_form) && ($this->_use_ftp_form || $this->_rule_errors_root)): ?>
         <p>
             If permission allow this can be done using the <a href="#ftp_upload_form">FTP form</a> below. <?php echo $this->_rule_errors_root_hide; ?>

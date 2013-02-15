@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 define('W3TC', true);
-define('W3TC_VERSION', '0.9.2.7');
+define('W3TC_VERSION', '0.9.2.8');
 define('W3TC_POWERED_BY', 'W3 Total Cache/' . W3TC_VERSION);
 define('W3TC_EMAIL', 'w3tc@w3-edge.com');
 define('W3TC_PAYPAL_URL', 'https://www.paypal.com/cgi-bin/webscr');
@@ -1431,36 +1431,6 @@ function w3_is_flushable_post($post, $module, $config) {
     }
     $flushable = !in_array($post->post_type, $post_type) && in_array($post->post_status, $post_status);
     return apply_filters('w3tc_flushable_post', $flushable, $post, $module);
-}
-
-/**
- * @param $filename
- * @param $content
- * @return bool
- */
-function file_put_contents_atomic($filename, $content) {
-
-    $temp = tempnam(W3TC_CACHE_TMP_DIR, 'temp');
-    if (!($f = @fopen($temp, 'wb'))) {
-        $temp = W3TC_CACHE_TMP_DIR . DIRECTORY_SEPARATOR . uniqid('temp');
-        if (!($f = @fopen($temp, 'wb'))) {
-            trigger_error("file_put_contents_atomic() : error writing temporary file '$temp'", E_USER_WARNING);
-            return false;
-        }
-    }
-
-    fwrite($f, $content);
-    fclose($f);
-
-    if (!@rename($temp, $filename)) {
-        @unlink($filename);
-        @rename($temp, $filename);
-    }
-    $chmod = 0644;
-    if (defined('FS_CHMOD_FILE'))
-        $chmod = FS_CHMOD_FILE;
-    @chmod($filename, $chmod);
-    return true;
 }
 
 /**

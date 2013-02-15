@@ -696,7 +696,7 @@ class W3_Plugin_BrowserCacheAdmin extends W3_Plugin {
         }
 
         w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-        w3_write_to_file($path, $data);
+        w3_wp_write_to_file($path, $data);
     }
 
     /**
@@ -755,7 +755,7 @@ class W3_Plugin_BrowserCacheAdmin extends W3_Plugin {
         }
 
         w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-        w3_write_to_file($path, $data);
+        w3_wp_write_to_file($path, $data);
     }
 
     /**
@@ -796,7 +796,7 @@ class W3_Plugin_BrowserCacheAdmin extends W3_Plugin {
                 $data = $this->erase_rules_cache($data);
 
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_write_to_file($path, $data);
+                w3_wp_write_to_file($path, $data);
             }
         }
     }
@@ -815,7 +815,7 @@ class W3_Plugin_BrowserCacheAdmin extends W3_Plugin {
                 $data = $this->erase_rules_no404wp($data);
 
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_write_to_file($path, $data);
+                w3_wp_write_to_file($path, $data);
             }
         }
     }

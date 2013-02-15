@@ -158,6 +158,11 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
      */
     var $_ftp_form;
 
+    var $_disable_cache_write_notification = false;
+    var $_disable_add_in_files_notification = false;
+    var $_disable_minify_error_notification = false;
+    var $_disable_file_operation_notification = false;
+
     /**
      * Runs plugin
      *
@@ -723,8 +728,10 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         $old_value = (array) get_option('active_plugins');
 
         if ($new_value !== $old_value && in_array(W3TC_FILE, (array) $new_value) && in_array(W3TC_FILE, (array) $old_value)) {
-            $this->_config->set('notes.plugins_updated', true);
-            $this->_config->save();
+                $this->_config->set('notes.plugins_updated', true);
+                try {
+                    $this->_config->save();
+                } catch(Exception $ex) {}
         }
 
         return $new_value;
@@ -870,7 +877,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
             'pgcache_purge_page' => 'Unable to purge page.',
             'enable_cookie_domain' => sprintf('<strong>%swp-config.php</strong> could not be written, please edit config and add:<br /><strong style="color:#f00;">define(\'COOKIE_DOMAIN\', \'%s\');</strong> before <strong style="color:#f00;">require_once(ABSPATH . \'wp-settings.php\');</strong>.', ABSPATH, addslashes($cookie_domain)),
             'disable_cookie_domain' => sprintf('<strong>%swp-config.php</strong> could not be written, please edit config and add:<br /><strong style="color:#f00;">define(\'COOKIE_DOMAIN\', false);</strong> before <strong style="color:#f00;">require_once(ABSPATH . \'wp-settings.php\');</strong>.', ABSPATH),
-            'cloudflare_api_request' => 'Unable to make CloudFlare API request.'
+            'cloudflare_api_request' => 'Unable to make CloudFlare API request.',
         );
 
         $note_messages = array(
@@ -975,18 +982,20 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                     try {
                         $result_file = $w3_setup->try_create_wp_loader();
                     } catch (TryException $ex) {
+                        $this->_disable_minify_error_notification = true;
                         $file_data = $w3_setup->w3tc_loader_file_data();
                         $filename = $file_data['filename'];
                         $data = $file_data['data'];
 
                         $errors[] = sprintf('<p>Minify and support requests will not function because <strong>%s</strong>
-                                                is outside the WordPress folder. The plugin needs to add file:
-                                                <br /><em>%s</em> with the following content:</p>
+                                                is outside the WordPress directory. The plugin needs to add file:
+                                                <br /><em>%s</em> with the following contents:</p>
                                             <pre>%s</pre>',
                         dirname(W3TC_WP_LOADER), $filename,
                         esc_textarea($data));
                         $this->_ftp_form = $ex->getFtpForm();
                     } catch (W3TCErrorException $ex) {
+                        $this->_disable_minify_error_notification = true;
                         $w3tc_error[] =  $ex->getMessage();
                     }
                 }
@@ -997,7 +1006,9 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                     } catch (TryException $ex) {
                         $add_in_files = $ex->getFiles();
                         $this->_ftp_form = $ex->getFtpForm();
+                        $this->_disable_add_in_files_notification = true;
                     } catch (W3TCErrorException $ex) {
+                        $this->_disable_add_in_files_notification = true;
                         $w3tc_error[] =  $ex->getMessage();
                     }
 
@@ -1006,18 +1017,21 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                     } catch (TryException $ex) {
                         $cache_folders = $ex->getFiles();
                         $this->_ftp_form = $ex->getFtpForm();
+                        $this->_disable_cache_write_notification = true;
                     } catch (W3TCErrorException $ex) {
                         $w3tc_error[] =  $ex->getMessage();
+                        $this->_disable_cache_write_notification = true;
                     } catch (TestException $ex) {
                         $results = $ex->getTestResults();
                         if (isset($results['permissions'])) {
                             $notes = array_merge($notes, $results['permissions']);
                         } else {
-                            $errors[] = sprintf('<p>File and folder creation tests failed %s</p>
+                            $errors[] = sprintf('<p>File and directory creation tests failed %s</p>
                                             <div class="w3tc-required-changes" style="display:none">%s</div>'
                                 ,$this->button('View required changes', '', 'w3tc-show-required-changes')
                                 , $w3_setup->format_test_result($results));
                         }
+                        $this->_disable_cache_write_notification = true;
                     }
 
                     if($add_in_files || $cache_folders) {
@@ -1060,12 +1074,12 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                                     $folders .= '</ul>';
                                     $errors[] = sprintf('<p><form method="POST" action="'.
                                         esc_attr($_SERVER['REQUEST_URI']).'" style="display:inline;">
-                                        The plugin cannot create/save the config file to <strong>%s</strong>.
-                                        Folder could have wrong permissions.</p><p>Should the plugin remove the plugin
-                                        folders it has created and restart setup process? ' . wp_nonce_field('w3tc') .
+                                        The plugin cannot create / save the config file to <strong>%s</strong>.
+                                        Directory may have incorrect permissions.</p><p>Should the plugin remove the plugin
+                                        directories it has created and restart setup process? ' . wp_nonce_field('w3tc') .
                                         '<input name="reset_folders" value="1" type="hidden" />
-                                        <input value="Yes, reset setup" type="submit" class="button-secondary"/>
-                                        </form></p><p>Folders that will be deleted:</p> %s'
+                                        <input value="Yes, restart setup" type="submit" class="button-secondary"/>
+                                        </form></p><p>Directories that will be deleted:</p> %s'
                                         , W3TC_CONFIG_DIR, $folders);
                                 }
                             } catch(FilesystemCredentialException $ex) {
@@ -1075,8 +1089,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                                     $not_installed .= '<li>' . $folder . '</li>';
                                 $not_installed .= '</ul>';
                                 $headline = $pagenow == 'plugins.php' ? '<h2 id="w3tc">W3 Total Cache Error</h2>': '';
-                                $errors[] = sprintf('%s<p>Unfortunately we\'re not able to remove folders to complete
-                                    the reset for you automatically. Please enter FTP details
+                                $errors[] = sprintf('%s<p>Directories could not be removed automatically. Please enter FTP details
                                     <a href="#ftp_upload_form">below</a> to complete the reset. %s</p>
                                     <div class="w3tc-required-changes" style="display:none">%s</div><p>' .
                                     (($cache_folders) ? 'The <strong>%s</strong> directory is not write-able.': '') .
@@ -1095,8 +1108,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                                     $not_installed .= '<li>' . $folder . '</li>';
                                 $not_installed .= '</ul>';
                                 $headline = $pagenow == 'plugins.php' ? '<h2 id="w3tc">W3 Total Cache Error</h2>': '';
-                                $errors[] = sprintf('%s<p>Unfortunately we\'re not able to remove folders to complete
-                                                the reset for you automatically. %s</p>
+                                $errors[] = sprintf('%s<p>Directories could not be removed  automatically. %s</p>
                                                 <div class="w3tc-required-changes" style="display:none">%s</div>'
                                                 , $headline
                                                 , $this->button('View required changes', '', 'w3tc-show-required-changes')
@@ -1105,8 +1117,10 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                             }
                         } catch (Exception $e) {}
                     }
-                } elseif (w3_get_blog_id() == 0
-                    && (int)get_transient('test.verify_permissions') <= strtotime('-1 hours')) {
+                } elseif ((!defined('W3TC_DISABLE_VERIFY_PERMISSIONS') ||
+                            (defined('W3TC_DISABLE_VERIFY_PERMISSIONS') && !W3TC_DISABLE_VERIFY_PERMISSIONS)
+                          ) && w3_get_blog_id() == 0 && (int)get_transient('test.verify_permissions') <= strtotime('-1 hours')) {
+                    w3_require_once(W3TC_INC_FUNCTIONS_DIR . '/activation.php');
                     try {
                         $results = $w3_setup->test_file_writing();
 
@@ -1114,7 +1128,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                             if (isset($results['permissions'])) {
                                 $notes = array_merge($notes, $results['permissions']);
                             } else
-                                $errors[] = sprintf('<p>File and folder creation tests failed %s</p>
+                                $errors[] = sprintf('<p>File and directory creation tests failed %s</p>
                                                 <div class="w3tc-required-changes" style="display:none">%s</div>'
                                                 , $this->button('View required changes', '', 'w3tc-show-required-changes')
                                                 , $w3_setup->format_test_result($results));
@@ -1124,28 +1138,22 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                     } catch(FilesystemCredentialException $ex) {
                         $form = $ex->ftp_form();
                         $headline = $pagenow == 'plugins.php' ? '<h2 id="w3tc">W3 Total Cache Error</h2>': '';
-                        $errors[] = sprintf('%s<p>We need permission to change folder permissions for you
-                                        automatically. Please enter FTP details <a href="#ftp_upload_form">below</a>
-                                         to complete the reset. %s</p>
-                                        <div class="w3tc-required-changes" style="display:none">%s</div>',
-                                        $headline, WP_CONTENT_DIR, 'what is to be done');
+                        $errors[] = sprintf('%s<p>The creation of cache / configuration files failed. <br />The directories with incorrect permissions are: <em>%s</em> and %s. Currently directory permissions are: %s. Please enter FTP details <a href="#ftp_upload_form">below</a> to automatically resolve the issue.</p>',
+                                        $headline, W3TC_CACHE_DIR, W3TC_CONFIG_DIR, base_convert(w3_get_file_permissions(W3TC_CACHE_DIR), 10, 8));
 
-                        $this->_ftp_form = '<div id="ftp_upload_form" class="updated fade"
-                                                 style="background: none;border: none;">' .
+                        $this->_ftp_form = '<div id="ftp_upload_form" class="updated fade" style="background:none;border:none;">' .
                                                  str_replace('class="wrap"', '',$form) . '</div>';
                         $this->_use_ftp_form = true;
                     } catch (FileOperationException $ex) {
-                        $errors[] = '<p>Unfortunately we\'re not able to chmod folders to setup folders properly.</p>';
-
+                        $errors[] = sprintf('<p>The creation of cache / configuration files failed. Unfortunately we\'re not able to change permissions from %s:<br /> <em>%s</em> <br /><em>%s</em><br />Directories typically should have at least 755 permissions. If it fails try 775 or 777 until this notification disappears.</p>',
+                                            base_convert(w3_get_file_permissions(W3TC_CACHE_DIR), 10, 8), W3TC_CACHE_DIR, W3TC_CONFIG_DIR);
                     }
                 }
             }
 
-            if (!$this->_config->own_config_exists() && empty($cache_folders) &&
+            if (!$this->_disable_cache_write_notification && !$this->_config->own_config_exists() && empty($cache_folders) &&
                 strpos(W3_Request::get_string('page'), 'w3tc_') !== false)
-                $w3tc_error[] = sprintf('<strong>W3 Total Cache Error:</strong> Default settings are in use.
-                                    The configuration file could not be read or doesn\'t exist. Please %s to create the
-                                    file.'
+                $w3tc_error[] = sprintf('<strong>W3 Total Cache Error:</strong> Default settings are in use. The configuration file could not be read or doesn\'t exist. Please %s to create the file.'
                                     , $this->button_link('save the settings'
                                     , wp_nonce_url(sprintf('admin.php?page=%s&w3tc_save_config', $this->_page)
                                     , 'w3tc')));
@@ -1326,10 +1334,10 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                     $this->_use_ftp_form = true;
                     $instruction = '. Please enter FTP details <a href="#ftp_upload_form">below</a> to complete the deactivation.';
                 } else {
-                    $instruction = ' due to the <a target="_blank" href="http://codex.wordpress.org/Changing_File_Permissions">permission settings</a> on your files and folders.';
+                    $instruction = ' due to the <a target="_blank" href="http://codex.wordpress.org/Changing_File_Permissions">permission settings</a> on your files and directories.';
                 }
                 $headline = '<h2 id="w3tc">W3 Total Cache Error</h2>';
-                $errors[] = sprintf('%s<p>Unfortunately we\'re not able to remove folders and files or write to them to complete the uninstallation for you automatically%s %s</p>
+                $errors[] = sprintf('%s<p>Unfortunately directories and files could not be automatically removed to complete the uninstallation%s %s</p>
                         <div class="w3tc-required-changes" style="display:none">%s</div><p>' .
                     'This error message will automatically disappear once the change is successfully made.</p>
                         ',$headline, $instruction, $this->button('View required changes', '', 'w3tc-show-required-changes'), $error_list, WP_CONTENT_DIR);
@@ -1378,8 +1386,8 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         /**
          * Check for page cache availability
          */
+        $wp_config_edit = false;
         if ($this->_config->get_boolean('pgcache.enabled')) {
-
             if ((!defined('WP_CACHE') || !WP_CACHE)) {
                 try {
                     $w3_plugin_admin = w3_instance('W3_Plugin_PgCacheAdmin');
@@ -1392,13 +1400,16 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                         $ftp_message = ' Or use the <a href="#ftp_upload_form">FTP form</a> below.';
                     } elseif ($e instanceof FileOperationException) {
                         $file_operation_exception = true;
+                        $wp_config_edit = true;
                     }
-                    $this->_errors[] = sprintf('Page caching is not available: please add: <strong>define(\'WP_CACHE\', true);</strong> to <strong>%s</strong>. %s', w3_get_wp_config_path(), $ftp_message) ;
+                    if (!$this->_disable_add_in_files_notification)
+                        $this->_errors[] = sprintf('Page caching is not available: please add: <strong>define(\'WP_CACHE\', true);</strong> to <strong>%s</strong>. %s', w3_get_wp_config_path(), $ftp_message) ;
                 }
             }
 
             if (!$w3_verify->advanced_cache_check()) {
-                $this->_errors[] = sprintf('Page caching is not available. The current add-in %s is either an incorrect file or an old version. De-activate the plugin, remove the file, then activate the plugin again.', W3TC_ADDIN_FILE_ADVANCED_CACHE);
+                if (!$this->_disable_add_in_files_notification)
+                    $this->_errors[] = sprintf('Page caching is not available. The current add-in %s is either missing, an incorrect file or an old version. De-activate the plugin, remove the file, then activate the plugin again.', W3TC_ADDIN_FILE_ADVANCED_CACHE);
             } elseif ($this->_config->get_string('pgcache.engine') == 'file_generic' && $this->_config->get_boolean('config.check') && w3_can_check_rules()) {
                 $w3_plugin_pgcache = w3_instance('W3_Plugin_PgCacheAdmin');
 
@@ -1534,7 +1545,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                 $w3_plugin_minify = w3_instance('W3_Plugin_MinifyAdmin');
 
                 if ($w3_plugin_minify->check_rules_core()) {
-                    if (!$this->test_rewrite_minify()) {
+                    if (!$this->test_rewrite_minify() && (!w3_is_multisite() || (w3_is_multisite() && w3_get_blog_id() != 0))) {
                         $this->_errors[] = 'It appears Minify <acronym title="Uniform Resource Locator">URL</acronym> rewriting is not working. If using apache, verify that the server configuration allows .htaccess. Or if using nginx verify all configuration files are included in the main configuration fail (and that you have reloaded / restarted nginx).';
                     }
 
@@ -1722,8 +1733,8 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
          * Check for database cache availability
          */
         if ($this->_config->get_boolean('dbcache.enabled')) {
-            if (!$w3_verify->db_check()) {
-                $this->_errors[] = sprintf('Database caching is not available. The current add-in %s is either an incorrect file or an old version. De-activate the plugin, remove the file, then activate the plugin again.', W3TC_ADDIN_FILE_DB);
+            if (!$this->_disable_add_in_files_notification && !$w3_verify->db_check()) {
+                $this->_errors[] = sprintf('Database caching is not available. The current add-in %s is either missing, an incorrect file or an old version. De-activate the plugin, remove the file, then activate the plugin again.', W3TC_ADDIN_FILE_DB);
             }
         }
 
@@ -1731,8 +1742,8 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
          * Check for object cache availability
          */
         if ($this->_config->get_boolean('objectcache.enabled')) {
-            if (!$w3_verify->objectcache_check()) {
-                $this->_errors[] = sprintf('Object caching is not available. The current add-in %s is either an incorrect file or an old version. De-activate the plugin, remove the file, then activate the plugin again.', W3TC_ADDIN_FILE_OBJECT_CACHE);
+            if (!$this->_disable_add_in_files_notification && !$w3_verify->objectcache_check()) {
+                $this->_errors[] = sprintf('Object caching is not available. The current add-in %s is either missing, an incorrect file or an old version. De-activate the plugin, remove the file, then activate the plugin again.', W3TC_ADDIN_FILE_OBJECT_CACHE);
             }
         }
 
@@ -1819,13 +1830,13 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         if (!W3TC_WIN && $this->_config->get_boolean('notes.wp_content_perms')) {
             $wp_content_mode = w3_get_file_permissions(WP_CONTENT_DIR);
 
-            if ($wp_content_mode > 755) {
+            if ($wp_content_mode > 0755) {
                 $this->_notes[] = sprintf('<strong>%s</strong> is write-able. When finished installing the plugin,
                                         change the permissions back to the default: <strong>chmod 755 %s</strong>.
                                         Permissions are currently %s. %s'
                                         , WP_CONTENT_DIR
                                         , WP_CONTENT_DIR
-                                        , w3_get_file_permissions(WP_CONTENT_DIR)
+                                        , base_convert(w3_get_file_permissions(WP_CONTENT_DIR), 10, 8)
                                         , $this->button_hide_note('Hide this message', 'wp_content_perms'));
             }
         }
@@ -1836,12 +1847,12 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         if (!W3TC_WIN && $this->_config->get_boolean('notes.wp_content_changed_perms')) {
             $perm = get_transient('w3tc_prev_permission');
             $current_perm = w3_get_file_permissions(WP_CONTENT_DIR);
-            if ($perm && $perm != $current_perm && ($current_perm > 0755 || $perm < $current_perm)) {
+            if ($perm && $perm != base_convert($current_perm, 10, 8) && ($current_perm > 0755 || $perm < base_convert($current_perm, 10, 8))) {
                 $this->_notes[] = sprintf('<strong>%s</strong> permissions were changed during the setup process.
                                         Permissions are currently %s.<br />To restore permissions run
                                         <strong>chmod %s %s</strong>. %s'
                                         , WP_CONTENT_DIR
-                                        , $current_perm
+                                        , base_convert($current_perm, 10, 8)
                                         , $perm
                                         , WP_CONTENT_DIR
                                         , $this->button_hide_note('Hide this message', 'wp_content_changed_perms'));
@@ -2016,47 +2027,66 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
             $this->_rule_errors_root = array();
         }
 
-        if (isset($file_operation_exception) && $file_operation_exception) {
+        $this->_disable_file_operation_notification = $this->_disable_add_in_files_notification || $this->_disable_cache_write_notification;
+
+        if (!$this->_disable_file_operation_notification && isset($file_operation_exception) && $file_operation_exception) {
             $tech_message = '<ul>';
             $core_rules_perms = '';
-            if (w3_get_file_permissions(w3_get_pgcache_rules_core_path()) != '0644')
-                $core_rules_perms = sprintf('File permissions are <strong>%s</strong> should be
-                                            <strong>0644</strong>.'
-                                            , w3_get_file_permissions(w3_get_pgcache_rules_core_path())
+            if (w3_get_file_permissions(w3_get_wp_config_path()) != 0644)
+                $core_config_perms = sprintf('File permissions are <strong>%s</strong>, however they should be
+                                        <strong>644</strong>.'
+                    , base_convert(w3_get_file_permissions(w3_get_wp_config_path()), 10, 8)
+                );
+            else
+                $core_config_perms = sprintf('File permissions are <strong>%s</strong>', base_convert(w3_get_file_permissions(w3_get_wp_config_path()), 10, 8));
+
+            if (w3_get_file_permissions(w3_get_pgcache_rules_core_path()) != 0644)
+                $core_rules_perms = sprintf('File permissions are <strong>%s</strong>, however they should be
+                                            <strong>644</strong>.'
+                                            , base_convert(w3_get_file_permissions(w3_get_pgcache_rules_core_path()), 10, 8)
                                             );
+            else
+                $core_rules_perms = sprintf('File permissions are <strong>%s</strong>', base_convert(w3_get_file_permissions(w3_get_pgcache_rules_core_path()), 10, 8));
+
             $wp_content_perms = '';
-            if (w3_get_file_permissions(WP_CONTENT_DIR) != '0755')
-                $wp_content_perms = sprintf('Folder permissions are <strong>%s</strong> should be
-                                            <strong>0755</strong>.'
-                                            , w3_get_file_permissions(WP_CONTENT_DIR)
+            if (w3_get_file_permissions(WP_CONTENT_DIR) != 0755)
+                $wp_content_perms = sprintf('Directory permissions are <strong>%s</strong>, however they should be
+                                            <strong>755</strong>.'
+                                            , base_convert(w3_get_file_permissions(WP_CONTENT_DIR), 10, 8)
                                             );
+            $tech_message .= '<li>' . sprintf('File: <strong>%s</strong> %s File owner: %s'
+                    ,w3_get_wp_config_path()
+                    ,$core_config_perms
+                    , w3_get_file_owner(w3_get_wp_config_path())) .
+                    '</li>' ;
 
             $tech_message .= '<li>' . sprintf('File: <strong>%s</strong> %s File owner: %s'
-                                            ,w3_get_pgcache_rules_core_path()
-                                            ,$core_rules_perms
-                                            , w3_get_file_owner(w3_get_pgcache_rules_core_path())) .
-                             '</li>' ;
-            $tech_message .= '<li>' . sprintf('File: <strong>%s</strong> %s File owner: %s'
+                                                ,w3_get_pgcache_rules_core_path()
+                                                ,$core_rules_perms
+                                                , w3_get_file_owner(w3_get_pgcache_rules_core_path())) .
+                                 '</li>' ;
+
+            $tech_message .= '<li>' . sprintf('Directory: <strong>%s</strong> %s File owner: %s'
                                             , WP_CONTENT_DIR
                                             , $wp_content_perms
                                             , w3_get_file_owner(WP_CONTENT_DIR)) .
                              '</li>' ;
-            $tech_message .= '<li>' . sprintf('File owner of current script: %s', w3_get_file_owner()) .
+
+            $tech_message .= '<li>' . sprintf('Owner of current file: %s', w3_get_file_owner()) .
                              '</li>' ;
             if (!(w3_get_file_owner() == w3_get_file_owner(w3_get_pgcache_rules_core_path()) &&
                 w3_get_file_owner() == w3_get_file_owner(WP_CONTENT_DIR)))
-                $tech_message .= '<li>The files and folders have different owners. They should have the same owners.
+                $tech_message .= '<li>The files and directories have different ownership, they should have the same ownership.
                                   </li>';
             $tech_message .= '</ul>';
             $tech_message = '<div class="w3tc-technical-info" style="display:none">' . $tech_message . '</div>';
             $w3tc_error[] = sprintf('<strong>W3 Total Cache Error:</strong> The plugin tried to edit, %s, but failed.
-                                This means that the plugin cannot make the correct file/folder changes on its own.
-                                Please review your
+                                Files and directories cannot be modified. Please review your
                                 <a target="_blank" href="http://codex.wordpress.org/Changing_File_Permissions">
-                                file permissions</a> (file owner, rights ...).
-                                Common cause is %s and %s having different owners or permissions. %s %s'
-                                , w3_get_pgcache_rules_core_path()
-                                , basename(w3_get_pgcache_rules_core_path())
+                                file permissions</a>. A common cause is %s and %s having different ownership or permissions.
+                                 %s %s'
+                                , $wp_config_edit ? w3_get_wp_config_path() :  w3_get_pgcache_rules_core_path()
+                                , $wp_config_edit ? basename(w3_get_wp_config_path()) :  basename(w3_get_pgcache_rules_core_path())
                                 , WP_CONTENT_DIR
                                 , $this->button('View technical information', '', 'w3tc-show-technical-info')
                                 ,$tech_message);
@@ -2069,8 +2099,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
             foreach ($remove_results as $result) {
                 $this->_errors = array_merge($this->_errors, $result['errors']);
                 if (!isset($this->_ftp_form) && isset($result['ftp_form'])) {
-                    $extra_ftp_message = 'Please enter FTP details <a href="#ftp_upload_form">below</a> to complete
-                                          the removal of disabled modules. ';
+                    $extra_ftp_message = 'Please enter FTP details <a href="#ftp_upload_form">below</a> to remove the disabled modules. ';
                     $this->_ftp_form = $result['ftp_form'];
                     $this->_use_ftp_form = true;
                 }
@@ -2853,16 +2882,10 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
             ), true);
         }
 
-        if ($this->config_save($config, $this->_config_admin)) {
-            $this->redirect(array(
-                'w3tc_note' => 'config_import'
-            ), true);
-
-        } else {
-            $this->redirect(array(
-                'w3tc_error' => 'config_save'
-            ), true);
-        }
+        $this->config_save($config, $this->_config_admin);
+        $this->redirect(array(
+            'w3tc_note' => 'config_import'
+        ), true);
     }
 
     /**
@@ -2884,7 +2907,6 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
     function action_config_reset() {
         @$config = new W3_Config();
         $config->set_defaults();
-
         $this->config_save($config, $this->_config_admin);
         $this->redirect(array(
             'w3tc_note' => 'config_reset'
@@ -2900,7 +2922,6 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         $this->_config->preview_production_copy(-1);
         $this->_config_admin->set('previewmode.enabled', true);
         $this->_config_admin->save();
-
         $this->redirect(array(
             'w3tc_note' => 'preview_enable'
         ));
@@ -3795,7 +3816,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                 w3_throw_on_write_error(W3TC_FILE_DB_CLUSTER_CONFIG);
             } catch (Exception $e) {
                 $error = $e->getMessage();
-	    	$this->redirect_with_custom_messages($params, array($error));
+	    	    $this->redirect_with_custom_messages($params, array($error));
             }
         }
 
@@ -4125,7 +4146,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
                         $config->set('newrelic.appname', $appname);
                     }
                 } else if ($method == 'manual' && $config->get_string('newrelic.appname')) {
-                    if (strpos($config->get_string('newrelic.appname'), $newrelic_prefix) === false) {
+                    if ($newrelic_prefix != '' && strpos($config->get_string('newrelic.appname'), $newrelic_prefix) === false) {
                         $application_name = $newrelic_prefix . $config->get_string('newrelic.appname');
                         $config->set('newrelic.appname', $application_name);
                     } else
@@ -4522,7 +4543,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         $this->_config->save();
         $this->redirect(array(
             'w3tc_note' => 'config_save'
-        ), true);
+            ), true);
     }
 
     /**
@@ -4537,13 +4558,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         $this->_config->set('common.support', $support);
         $this->_config->set('common.tweeted', $tweeted);
 
-        try {
-            $this->_config->save();
-        }catch(Exception $ex) {
-            $this->redirect(array(
-                'w3tc_error' => 'config_save'
-            ));
-        }
+        $this->_config->save();
 
         $this->link_update();
 
@@ -5412,9 +5427,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         if ($this->_config->get_string('pgcache.engine') == $type && $this->_config->get_boolean('pgcache.enabled')) {
             $this->_config->set('notes.need_empty_pgcache', false);
             $this->_config->set('notes.plugins_updated', false);
-
             $this->_config->save();
-
             $this->flush_pgcache();
         }
 
@@ -5432,9 +5445,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
 
         if ($this->_config->get_string('minify.engine') == $type && $this->_config->get_boolean('minify.enabled')) {
             $this->_config->set('notes.need_empty_minify', false);
-
             $this->_config->save();
-
             $this->flush_minify();
         }
     }
@@ -5551,6 +5562,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
     function flush_browser_cache() {
         if ($this->_config->get_boolean('browsercache.enabled')) {
             $this->_config->set('browsercache.timestamp', time());
+
             $this->_config->save();
         }
     }

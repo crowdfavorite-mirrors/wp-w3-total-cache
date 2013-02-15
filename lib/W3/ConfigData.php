@@ -153,7 +153,7 @@ class W3_ConfigData {
         foreach ($this->data as $key => $value)
             $config .= $this->_write_item(1, $key, $value);
         $config .= ");";
-        return @file_put_contents_atomic($filename, $config);
+        return @$this->file_put_contents_atomic($filename, $config);
     }
     
     
@@ -209,5 +209,48 @@ class W3_ConfigData {
         $item .= $data . ",\r\n";
 
         return $item;
+    }
+
+    /**
+     * @param $filename
+     * @param $content
+     * @return bool
+     */
+    function file_put_contents_atomic($filename, $content) {
+        if (is_dir(W3TC_CACHE_TMP_DIR) && is_writable(W3TC_CACHE_TMP_DIR)) {
+            $temp = tempnam(W3TC_CACHE_TMP_DIR, 'temp');
+        } else {
+            trigger_error("file_put_contents_atomic() : error writing temporary file to '" . W3TC_CACHE_TMP_DIR . "'", E_USER_WARNING);
+            return false;
+        }
+
+        $chmod = 0644;
+        if (defined('FS_CHMOD_FILE'))
+            $chmod = FS_CHMOD_FILE;
+        @chmod($temp, $chmod);
+
+        if (!($f = @fopen($temp, 'wb'))) {
+            if (file_exists($temp))
+                @unlink($temp);
+           trigger_error("file_put_contents_atomic() : error writing temporary file '$temp'", E_USER_WARNING);
+           return false;
+        }
+
+        fwrite($f, $content);
+        fclose($f);
+
+        if (!@rename($temp, $filename)) {
+            @unlink($filename);
+            @rename($temp, $filename);
+        }
+
+        if (file_exists($temp))
+            @unlink($temp);
+
+        $chmod = 0644;
+        if (defined('FS_CHMOD_FILE'))
+            $chmod = FS_CHMOD_FILE;
+        @chmod($filename, $chmod);
+        return true;
     }
 }

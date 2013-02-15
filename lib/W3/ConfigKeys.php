@@ -1121,11 +1121,11 @@ $keys = array(
     ),
     'cloudflare.ips.ip4' => array(
         'type' => 'array',
-        'default' => array()
+        'default' => array("204.93.240.0/24", "204.93.177.0/24", "199.27.128.0/21", "173.245.48.0/20", "103.22.200.0/22", "141.101.64.0/18", "108.162.192.0/18","190.93.240.1/20","188.114.96.0/20", "198.41.128.0/17")
     ),
     'cloudflare.ips.ip6' => array(
         'type' => 'array',
-        'default' => array()
+        'default' => array("2400:cb00::/32", "2606:4700::/32", "2803:f800::/32")
     ),
 
     'varnish.enabled' => array(
@@ -1643,7 +1643,7 @@ $keys = array(
 
     'minify.auto.filename_length' => array(
         'type' => 'integer',
-        'default' => 251
+        'default' => 150
     ),
     'common.instance_id' => array(
         'type' => 'integer',

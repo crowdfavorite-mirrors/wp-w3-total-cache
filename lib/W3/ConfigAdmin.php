@@ -116,10 +116,15 @@ class W3_ConfigAdmin extends W3_ConfigBase {
             w3_mkdir_from(dirname($filename), WP_CONTENT_DIR);
         }
 
+        if (!is_dir(dirname(W3TC_CACHE_TMP_DIR))) {
+            w3_require_once(W3TC_INC_DIR . '/functions/file.php');
+            w3_mkdir_from(dirname(W3TC_CACHE_TMP_DIR), WP_CONTENT_DIR);
+        }
+
         if (!$this->_data_object->write($filename)) {
             if (is_dir(W3TC_CONFIG_DIR)) {
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_throw_on_write_error($filename);
+                w3_throw_on_write_error($filename, array(dirname($filename), W3TC_CACHE_TMP_DIR));
             }
         }
     }

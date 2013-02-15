@@ -165,6 +165,59 @@ class W3_Plugin_Minify extends W3_Plugin {
                     $embed_extsrcjs = false;
 
                     if ($this->_config->get_boolean('minify.auto')) {
+                        if ($this->_config->get_boolean('minify.js.enable')) {
+                            $ignore_js_files = $this->_config->get_array('minify.reject.files.js');
+                            $embed_type = $this->_config->get_string('minify.js.header.embed_type');
+                            $embed_type = $embed_type == 'extsrc' || $embed_type == 'asyncsrc'?'blocking':$embed_type;
+
+                            $embed_pos = strpos($buffer, '<!-- W3TC-include-js-head -->');
+                            $buffer = str_replace('<!-- W3TC-include-js-head -->', '', $buffer);
+                            if ($embed_pos === false) {
+                                preg_match('~<head(\s+[^<>]+)*>~Ui', $buffer, $match, PREG_OFFSET_CAPTURE);
+                                $embed_pos = strlen($match[0][0]) + $match[0][1];
+                            }
+
+                            $ignore_js_files = array_map('w3_normalize_file', $ignore_js_files);
+                            $files_to_minify = array();
+                            $handled_scripts = array();
+                            $script_tags = w3_extract_js2($buffer);
+                            $previous_file_was_ignored = false;
+                            foreach ($script_tags as $script_tag) {
+                                $tag_pos = strpos($buffer, $script_tag);
+                                $match = array();
+                                preg_match('~<script\s+[^<>]*src=["\']?([^"\']+)["\']?[^<>]*>\s*</script>~is', $script_tag, $match);
+                                $file = $match[1];
+                                $file = w3_normalize_file_minify2($file);
+                                $script_len = strlen($script_tag);
+                                if (!$this->_filter_files($file) || in_array($file, $handled_scripts)) {
+                                    continue;
+                                }
+                                $handled_scripts[] = $file;
+                                if (in_array($file, $ignore_js_files)) {
+                                    if ($tag_pos > $embed_pos) {
+                                        if ($files_to_minify) {
+                                            $script = $this->get_script_custom($files_to_minify, $embed_type);
+                                            $buffer = substr_replace($buffer, $script, $embed_pos, 0);
+                                            $files_to_minify = array();
+                                            $script_len = $script_len +strlen($script);
+                                        }
+
+                                        $embed_pos = $embed_pos + $script_len;
+                                        $previous_file_was_ignored = true;
+                                    }
+                                } else {
+                                    $buffer = substr_replace($buffer,'', $tag_pos, $script_len);
+                                    if ($embed_pos > $tag_pos)
+                                        $embed_pos -= $script_len;
+                                    elseif ($previous_file_was_ignored)
+                                        $embed_pos = $tag_pos;
+                                    $files_to_minify[] = $file;
+                                }
+                            }
+                            $script = $this->get_script_custom($files_to_minify, $embed_type);
+                            $buffer = substr_replace($buffer, $script, $embed_pos, 0);
+                        }
+
                         if ($this->_config->get_boolean('minify.css.enable')) {
                             $ignore_css_files = $this->_config->get_array('minify.reject.files.css');
                             $files_to_minify = array();
@@ -217,59 +270,6 @@ class W3_Plugin_Minify extends W3_Plugin {
                             }
                             $style = $this->get_style_custom($files_to_minify);
                             $buffer = substr_replace($buffer, $style, $embed_pos, 0);
-                        }
-
-                        if ($this->_config->get_boolean('minify.js.enable')) {
-                            $ignore_js_files = $this->_config->get_array('minify.reject.files.js');
-                            $embed_type = $this->_config->get_string('minify.js.header.embed_type');
-                            $embed_type = $embed_type == 'extsrc' || $embed_type == 'asyncsrc'?'blocking':$embed_type;
-
-                            $embed_pos = strpos($buffer, '<!-- W3TC-include-js-head -->');
-                            $buffer = str_replace('<!-- W3TC-include-js-head -->', '', $buffer);
-                            if ($embed_pos === false) {
-                                preg_match('~<head(\s+[^<>]+)*>~Ui', $buffer, $match, PREG_OFFSET_CAPTURE);
-                                $embed_pos = strlen($match[0][0]) + $match[0][1];
-                            }
-
-                            $ignore_js_files = array_map('w3_normalize_file', $ignore_js_files);
-                            $files_to_minify = array();
-                            $handled_scripts = array();
-                            $script_tags = w3_extract_js2($buffer);
-                            $previous_file_was_ignored = false;
-                            foreach ($script_tags as $script_tag) {
-                                $tag_pos = strpos($buffer, $script_tag);
-                                $match = array();
-                                preg_match('~<script\s+[^<>]*src=["\']?([^"\']+)["\']?[^<>]*>\s*</script>~is', $script_tag, $match);
-                                $file = $match[1];
-                                $file = w3_normalize_file_minify2($file);
-                                $script_len = strlen($script_tag);
-                                if (!$this->_filter_files($file) || in_array($file, $handled_scripts)) {
-                                    continue;
-                                }
-                                $handled_scripts[] = $file;
-                                if (in_array($file, $ignore_js_files)) {
-                                    if ($tag_pos > $embed_pos) {
-                                        if ($files_to_minify) {
-                                            $script = $this->get_script_custom($files_to_minify, $embed_type);
-                                            $buffer = substr_replace($buffer, $script, $embed_pos, 0);
-                                            $files_to_minify = array();
-                                            $script_len = $script_len +strlen($script);
-                                        }
-
-                                        $embed_pos = $embed_pos + $script_len;
-                                        $previous_file_was_ignored = true;
-                                    }
-                                } else {
-                                    $buffer = substr_replace($buffer,'', $tag_pos, $script_len);
-                                    if ($embed_pos > $tag_pos)
-                                        $embed_pos -= $script_len;
-                                    elseif ($previous_file_was_ignored)
-                                        $embed_pos = $tag_pos;
-                                    $files_to_minify[] = $file;
-                                }
-                            }
-                            $script = $this->get_script_custom($files_to_minify, $embed_type);
-                            $buffer = substr_replace($buffer, $script, $embed_pos, 0);
                         }
                     } else {
                         if ($this->_config->get_boolean('minify.css.enable') && !in_array('include', $this->printed_styles)) {

@@ -375,18 +375,21 @@ jQuery(function() {
 
         jQuery.getJSON(ajaxurl, params, function(data) {
             var app_id_select = jQuery('#newrelic_application_id_dropdown');
+            var count = 0;
             app_id_select.empty();
             app_id_select
                 .append(jQuery("<option></option>")
                 .attr("value",'')
                 .text('-- Select Application --'));
-
             jQuery.each(data, function(key, value) {
                 app_id_select
                     .append(jQuery("<option></option>")
                     .attr("value",key)
                     .text(value));
+                count++;
             });
+            if (count == 0)
+                alert('Could not retrieve any applications. Verify your API key.');
         });
     });
 

@@ -391,7 +391,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
     function enable_wp_cache() {
 
         $config_path = w3_get_wp_config_path();
-        $config_data = w3_read_from_file($config_path);
+        $config_data = w3_wp_read_from_file($config_path);
 
         if ($config_data === false) {
             return false;
@@ -401,7 +401,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
         $new_config_data = preg_replace('~<\?(php)?~', "\\0\r\n/** Enable W3 Total Cache */\r\ndefine('WP_CACHE', true); // Added by W3 Total Cache\r\n", $new_config_data, 1);
 
         if ($new_config_data != $config_data) {
-            w3_write_to_file($config_path, $new_config_data);
+            w3_wp_write_to_file($config_path, $new_config_data);
          }
 
         return true;
@@ -424,7 +424,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
         $new_config_data = $this->erase_wp_cache($config_data);
 
         if ($new_config_data != $config_data) {
-            w3_write_to_file($config_path, $new_config_data);
+            w3_wp_write_to_file($config_path, $new_config_data);
         }
 
         return true;
@@ -1245,7 +1245,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
         }
 
         w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-        w3_write_to_file($path, $data);
+        w3_wp_write_to_file($path, $data);
     }
 
     /**
@@ -1308,7 +1308,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
         }
 
         if ($use_fs) {
-            w3_write_to_file($path, $data);
+            w3_wp_write_to_file($path, $data);
         } else {
             if (!@file_put_contents($path, $data)) {
                 w3_throw_on_write_error($path);
@@ -1378,7 +1378,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
                 $data = $this->erase_rules_core($data);
 
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_write_to_file($path, $data);
+                w3_wp_write_to_file($path, $data);
             }
         }
     }
@@ -1418,7 +1418,7 @@ class W3_Plugin_PgCacheAdmin extends W3_Plugin {
                 $data = $this->erase_rules_legacy($data);
 
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_write_to_file($path, $data);
+                w3_wp_write_to_file($path, $data);
             }
         }
     }

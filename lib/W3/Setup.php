@@ -8,7 +8,7 @@ class W3_Setup {
     const WPFS_CHMOD = 'wp filesystem chmod';
     private static $test_dir;
     function __construct() {
-        self::$test_dir = W3TC_CACHE_DIR . DIRECTORY_SEPARATOR . '/test_dir';
+        self::$test_dir = W3TC_CACHE_DIR . DIRECTORY_SEPARATOR . 'test_dir';
     }
 
     function get_setup_message($cache_folders, $addin_files, $ftp_form) {
@@ -25,16 +25,18 @@ class W3_Setup {
 
         $not_installed .= '</ul>';
         $headline = $pagenow == 'plugins.php' ? '<h2 id="w3tc">W3 Total Cache Error</h2>': '';
-        $error = sprintf('%s<p>Unfortunately we\'re not able to create folders and files or write to them to complete
-                            the installation for you automatically. Please enter FTP details
-                            <a href="#ftp_upload_form">below</a> to complete the setup. %s</p>
+        $error = sprintf('%s<p>Files and directories could not be automatically created to complete the installation. Please enter FTP details
+                            <a href="#ftp_upload_form">below</a> to complete the setup.
+                            Also try <strong>chmod 777 %s</strong><br /> %s</p>
                             <div class="w3tc-required-changes" style="display:none">%s</div><p>' .
                             (($cache_folders || $addin_files) ?
                                 'Either the <strong>%s</strong> directory is not write-able or another caching plugin
                                  is installed.'
                                 : '') .
                             'This error message will automatically disappear once the change is successfully made.</p>'
-                            , $headline, $this->button('View required changes', '', 'w3tc-show-required-changes')
+                            , $headline
+                            , WP_CONTENT_DIR
+                            ,$this->button('View required changes', '', 'w3tc-show-required-changes')
                             , $not_installed, WP_CONTENT_DIR);
         if ($pagenow == 'plugins.php') {
             $ftp_form = '<div id="ftp_upload_form" class="updated fade" style="background: none;border: none;">' .
@@ -72,11 +74,8 @@ class W3_Setup {
     }
 
     public function try_create_missing_files() {
-        $prev_perm = get_transient('w3tc_prev_permission');
-        if (!$prev_perm) {
-            $prev_perm = w3_get_file_permissions(WP_CONTENT_DIR);
-            set_transient('w3tc_prev_permission', $prev_perm, 3600*24);
-        }
+        $prev_perm = w3_get_file_permissions(WP_CONTENT_DIR);
+
         /**
          * @var $w3_verify W3_FileVerification
          */
@@ -87,10 +86,10 @@ class W3_Setup {
             return true;
         $addin_files = $result_verify['files'];
         $url = w3_is_network() ?
-                    network_admin_url('admin.php?page=w3tc_general') : admin_url('admin.php?page=w3tc_general');
+                    network_admin_url('plugins.php') : admin_url('plugins.php');
         try {
             w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-            w3_create_files($addin_files, '', $url);
+            w3_wp_create_files($addin_files, '', $url);
         } catch(Exception $ex) {
             if ($ex instanceof FilesystemCredentialException) {
                 throw new TryException('Could not create files', $result_verify, $ex->ftp_form());
@@ -102,20 +101,26 @@ class W3_Setup {
                     if ($ex instanceof FilesystemCredentialException) {
                         throw new TryException('Could not create files', $result_verify, $ex->ftp_form());
                     } else {
-                        if ($ex instanceof FileOperationException && $ex->getOperation() == 'chmod') {
-                            $current_perm = w3_get_file_permissions(WP_CONTENT_DIR);
+                        $current_perm = w3_get_file_permissions(WP_CONTENT_DIR);
+                        if ($current_perm != $prev_perm && $ex instanceof FileOperationException && $ex->getOperation() == 'chmod') {
                             throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> Could not
-                                            change permissions %d on %s back to original permissions %d.'
-                                            , $current_perm, WP_CONTENT_DIR, $prev_perm));
+                                            change permissions %s on %s back to original permissions %s.'
+                                            , base_convert($current_perm, 10, 8), WP_CONTENT_DIR, base_convert($prev_perm, 10, 8)));
                         }else
-                            throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> %s<br />
+                            $missing_files = '<ul>';
+                            foreach ($addin_files as $result)
+                                $missing_files .= '<li>' . basename($result) . '</li>';
+                            $missing_files.= '</ul>';
+
+                            throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> Moving missing files from <em>%s</em> to <em>%s</em> failed:%s
                                             Verify that correct (server, S/FTP)
                                             <a target="_blank" href="http://codex.wordpress.org/Changing_File_Permissions">
                                                 file permissions</a>
-                                            are set or set FS_CHMOD_* constants in wp-config.php
+                                            are set or set FS_CHMOD_* constants in wp-config.php and / or try adding <em>define(\'FS_METHOD\', \'direct\');</em> in wp-config.php
                                             <a target="_blank" href="http://codex.wordpress.org/Editing_wp-config.php#Override_of_default_file_permissions">
-                                                Learn more</a>.'
-                                            , $ex->getMessage()));
+                                                Learn more</a>. If all else fails, try <strong>chmod 777 %s</strong>'
+                                            , str_replace(dirname(WP_CONTENT_DIR), '', W3TC_INSTALL_DIR), basename(WP_CONTENT_DIR), $missing_files,
+                                            WP_CONTENT_DIR));
                     }
                 }
             }
@@ -124,11 +129,7 @@ class W3_Setup {
     }
 
     public function try_create_missing_folders() {
-        $prev_perm = get_transient('w3tc_prev_permission');
-        if (!$prev_perm) {
-            $prev_perm = w3_get_file_permissions(WP_CONTENT_DIR);
-            set_transient('w3tc_prev_permission', $prev_perm, 3600);
-        }
+        $prev_perm = w3_get_file_permissions(WP_CONTENT_DIR);
 
         /**
          * @var $w3_verify W3_FileVerification
@@ -139,47 +140,61 @@ class W3_Setup {
         if (empty($folders))
             return true;
         $url = w3_is_network() ?
-                    network_admin_url('admin.php?page=w3tc_general') : admin_url('admin.php?page=w3tc_general');
+            network_admin_url('plugins.php') : admin_url('plugins.php');
+
         try {
             w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-            w3_create_folders($folders, '', $url);
+            w3_wp_create_folders($folders, '', $url);
             $results = $this->test_file_writing();
         } catch(Exception $ex) {
             if ($ex instanceof FilesystemCredentialException) {
-                throw new TryException('Could not create folders', $folders, $ex->ftp_form());
+                throw new TryException('Could not create directories', $folders, $ex->ftp_form());
             } else {
                 try {
                     $this->_try_create_missing_folders($folders, $url);
                     $results = $this->test_file_writing();
                 } catch(Exception $ex) {
                     if ($ex instanceof FilesystemCredentialException) {
-                        throw new TryException('Could not create folders', $folders, $ex->ftp_form());
+                        throw new TryException('Could not create directories', $folders, $ex->ftp_form());
                     } else {
-                        if ($ex instanceof FileOperationException && $ex->getOperation() == 'chmod') {
-                            $current_perm = w3_get_file_permissions(WP_CONTENT_DIR);
+                        $current_perm = w3_get_file_permissions(WP_CONTENT_DIR);
+                        if ($current_perm != $prev_perm && $ex instanceof FileOperationException && $ex->getOperation() == 'chmod') {
                             throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> Could not
-                                            change permissions %d on %s back to original permissions %d.'
-                                            , $current_perm, WP_CONTENT_DIR, $prev_perm));
-                        }else
-                            throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> %s<br />Verify
+                                            revert permissions %s on %s back to original permissions %s.'
+                                            , base_convert($current_perm, 10, 8), WP_CONTENT_DIR, base_convert($prev_perm, 10, 8)));
+                        }else {
+                            $missing_folders = '<ul>';
+                            foreach ($folders as $result)
+                                $missing_folders .= '<li>' . str_replace(WP_CONTENT_DIR, '', $result) . '</li>';
+                            $missing_folders .= '</ul>';
+
+                            throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> Failed to create missing directories in %s: %s Verify
                                             that correct (server, S/FTP)
                                             <a target="_blank" href="http://codex.wordpress.org/Changing_File_Permissions">
                                                 file permissions</a>
-                                            are set or set FS_CHMOD_* constants in wp-config.php
+                                            are set or set FS_CHMOD_* constants in wp-config.php and/or try adding <em>define(\'FS_METHOD\', \'direct\');</em> in wp-config.php
                                             <a target="_blank" href="http://codex.wordpress.org/Editing_wp-config.php#Override_of_default_file_permissions">
-                                                Learn more</a>.'
-                                            , $ex->getMessage()));
+                                                Learn more</a>. If all else fails, try <strong>chmod 777 %s</strong>'
+                                            , basename(WP_CONTENT_DIR), $missing_folders
+                                            , WP_CONTENT_DIR));
+                        }
                     }
                 }
-                if ($results)
-                    throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> %s<br />Verify that
-                                    correct (server, S/FTP)
+                if ($results) {
+                    $missing_folders = '<ul>';
+                    foreach ($results as $result)
+                        $missing_folders .= '<li>' . $result . '</li>';
+                    $missing_folders .= '</ul>';
+                    throw new W3TCErrorException(sprintf('<strong>W3 Total Cache Error:</strong> Failed to create missing directories in %s: %s
+                                    Verify that correct (server, S/FTP)
                                     <a target="_blank" href="http://codex.wordpress.org/Changing_File_Permissions">
                                         file permissions</a>
                                     are set or set FS_CHMOD_* constants in wp-config.php
                                     <a target="_blank" href="http://codex.wordpress.org/Editing_wp-config.php#Override_of_default_file_permissions">
-                                        Learn more</a>.'
-                                    , $ex->getMessage()));
+                                        Learn more</a>. If all else fails, try <strong>chmod 777 %s</strong>'
+                                    , basename(WP_CONTENT_DIR), $missing_folders,
+                                    WP_CONTENT_DIR));
+                }
             }
         }
 
@@ -211,18 +226,21 @@ class W3_Setup {
         $prev_perm = w3_get_file_permissions(WP_CONTENT_DIR);
         foreach ($permissions as $permission) {
             $result = true;
-            if ($permission == $prev_perm)
+            if ($prev_perm > $permission)
                 continue;
-            if (!($result = @chmod(WP_CONTENT_DIR, $permission)))
-                $result = w3_chmod_dir(WP_CONTENT_DIR, $permission);
+
+            if ($permission != $prev_perm)
+                if (!($result = @chmod(WP_CONTENT_DIR, $permission)))
+                    $result = w3_chmod_dir(WP_CONTENT_DIR, $permission);
             if ($result) {
                 try {
-                    w3_create_folders($folders, '', $url);
+                    w3_wp_create_folders($folders, '', $url);
                     return true;
                 }catch (Exception $ex) {}
             }
-            if (!@chmod(WP_CONTENT_DIR, $prev_perm))
-                w3_chmod_dir(WP_CONTENT_DIR, $prev_perm);
+            if ($permission != $prev_perm)
+                if (!@chmod(WP_CONTENT_DIR, $prev_perm))
+                    w3_chmod_dir(WP_CONTENT_DIR, $prev_perm);
         }
         return true;
     }
@@ -232,23 +250,26 @@ class W3_Setup {
         $prev_perm = w3_get_file_permissions(WP_CONTENT_DIR);
         foreach ($permissions as $permission) {
             $result = true;
-            if ($permission == $prev_perm)
+            if ($prev_perm > $permission)
                 continue;
-            if (!($result = @chmod(WP_CONTENT_DIR, $permission)))
-                $result = w3_chmod_dir(WP_CONTENT_DIR, $permission);
+
+            if ($permission != $prev_perm)
+                if (!($result = @chmod(WP_CONTENT_DIR, $permission)))
+                    $result = w3_chmod_dir(WP_CONTENT_DIR, $permission);
             if ($result) {
                 try {
-                    w3_create_files($files, '', $url);
+                    w3_wp_create_files($files, '', $url);
                     return true;
                 }catch (Exception $ex) {}
             }
-            if (!@chmod(WP_CONTENT_DIR, $prev_perm))
-                w3_chmod_dir(WP_CONTENT_DIR, $prev_perm);
+            if ($permission != $prev_perm)
+                if (!@chmod(WP_CONTENT_DIR, $prev_perm))
+                    w3_chmod_dir(WP_CONTENT_DIR, $prev_perm);
         }
         return true;
     }
 
-    public function test_file_writing() {
+    public function test_file_writing($single = false) {
         $results = array();
         $permissions = array(0755, 0775, 0777);
         $test_result1 = $this->_test_cache_file_creation();
@@ -257,23 +278,27 @@ class W3_Setup {
             w3_require_once(W3TC_INC_DIR . '/functions/file.php');
             $prev_perm = w3_get_file_permissions(W3TC_CACHE_DIR);
             foreach ($permissions as $permission) {
-                if ($permission == $prev_perm)
+                $result = true;
+
+                if ($prev_perm > $permission)
                     continue;
-                $result = w3_chmod_dir(W3TC_CACHE_DIR, $permission, true);
+
+                if ($permission != $prev_perm)
+                    $result = w3_chmod_dir(W3TC_CACHE_DIR, $permission, true);
                 if ($result) {
                     $test_result1 = $this->_test_cache_file_creation();
                     if ($test_result1['success']) {
                         $c_fileowngrp = w3_get_file_owner(W3TC_CACHE_DIR);
                         $d_fileowngrp = w3_get_file_owner();
 
-                        $results['permissions'][] = sprintf('Plugin changed permissions on: %s to %d from %s. <br />' .
+                        $results['permissions'][] = sprintf('Plugin changed permissions on: %s to %s from %s. <br />' .
                             'Default file owner is %s, plugin created files is owned by %s.',
-                            W3TC_CACHE_DIR, decoct($permission), $prev_perm,
+                            W3TC_CACHE_DIR, base_convert($permission, 10, 8), base_convert($prev_perm, 10, 8),
                             $d_fileowngrp, $c_fileowngrp);
                         break;
                     }
                 } else {
-                    $results[] = 'Folder does not exists: ' . W3TC_CACHE_DIR;
+                    $results[] = 'Directory does not exist: ' . W3TC_CACHE_DIR;
                 }
             }
         }
@@ -284,23 +309,26 @@ class W3_Setup {
             w3_require_once(W3TC_INC_DIR . '/functions/file.php');
             $prev_perm = w3_get_file_permissions(W3TC_CONFIG_DIR);
             foreach ($permissions as $permission) {
-                if ($permission == $prev_perm)
+                $result = true;
+                if ($prev_perm > $permission)
                     continue;
-                $result = w3_chmod_dir(W3TC_CONFIG_DIR, $permission);
+
+                if ($permission != $prev_perm)
+                    $result = w3_chmod_dir(W3TC_CONFIG_DIR, $permission);
                 if ($result) {
                     $test_result2 = $this->_test_w3tc_config_creation();
                     if ($test_result2['success']) {
                         $c_fileowngrp = w3_get_file_owner(W3TC_CONFIG_DIR);
                         $d_fileowngrp = w3_get_file_owner();
 
-                        $results['permissions'][] = sprintf('Plugin changed permissions on: %s to %d from %s. <br />' .
+                        $results['permissions'][] = sprintf('Plugin changed permissions on: %s to %s from %s. <br />' .
                                 'Default file owner is %s, plugin created files is owned by %s.',
-                            W3TC_CONFIG_DIR, decoct($permission), $prev_perm,
+                            W3TC_CONFIG_DIR, base_convert($permission, 10, 8), base_convert($prev_perm, 10, 8),
                             $d_fileowngrp, $c_fileowngrp);
                         break;
                     }
                 } else {
-                    $results[] = 'Folder does not exists: ' . W3TC_CONFIG_DIR;
+                    $results[] = 'Directory does not exist: ' . W3TC_CONFIG_DIR;
                 }
             }
         }
@@ -308,12 +336,12 @@ class W3_Setup {
         foreach ($test_result1 as $test => $result) {
             if ($test == 'folder' && !$result)
                 $results[] = sprintf('Could not mkdir: %s', self::$test_dir);
-            elseif (!$result)
-                $results[] = sprintf('Could not create file in %s using %s.', self::$test_dir,  $test);
+            elseif (!$result && $test != 'success')
+                $results[] = sprintf('Could not create file in %s using %s.' , self::$test_dir,  $test);
         }
 
         foreach ($test_result2 as $test => $result) {
-            if (!$result)
+            if (!$result && $test != 'success')
                 $results[] = sprintf('Could not create file in %s using %s.', W3TC_CONFIG_DIR,  $test);
         }
 
@@ -466,7 +494,7 @@ class W3_Setup {
             network_admin_url('admin.php?page=w3tc_general') : admin_url('admin.php?page=w3tc_general');
         try {
             w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-            $result = w3_write_to_file($filename, $data, $url);
+            $result = w3_wp_write_to_file($filename, $data, $url);
         } catch(Exception $ex) {
             if ($ex instanceof FilesystemCredentialException) {
                 throw new TryException('Could not create file', array($filename), $ex->ftp_form());

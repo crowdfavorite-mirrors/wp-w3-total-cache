@@ -994,7 +994,7 @@ WHERE p.post_type = "attachment" AND (pm.meta_value IS NOT NULL OR pm2.meta_valu
         }
 
         w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-        w3_write_to_file($path, $data);
+        w3_wp_write_to_file($path, $data);
     }
 
     /**
@@ -1023,7 +1023,7 @@ WHERE p.post_type = "attachment" AND (pm.meta_value IS NOT NULL OR pm2.meta_valu
                 $data = $this->erase_rules($data);
 
                 w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-                w3_write_to_file($path, $data);
+                w3_wp_write_to_file($path, $data);
             }
         }
     }

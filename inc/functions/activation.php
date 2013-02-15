@@ -98,15 +98,25 @@ function w3_throw_on_read_error($path) {
  * W3 writable error
  *
  * @param string $path
+ * @param string[] $chmod_dirs Directories that should be chmod 777 inorder to write
  * @throws FileOperationException
  */
-function w3_throw_on_write_error($path) {
+function w3_throw_on_write_error($path, $chmod_dirs = array()) {
     w3_require_once(W3TC_INC_DIR . '/functions/file.php');
-
+    $chmods = '';
+    if ($chmod_dirs) {
+        $chmods = '<ul>';
+        foreach($chmod_dirs as $dir) {
+            $chmods .= sprintf('<li><strong style="color: #f00;">chmod 777 %s</strong></li>', $dir);
+        }
+    } else {
+        $chmods = sprintf('<strong style="color: #f00;">chmod 777 %s</strong>',
+                         (file_exists($path) ? $path : dirname($path)));
+    }
     if (w3_check_open_basedir($path)) {
         $error = sprintf('<strong>%s</strong> could not be created, please run following ' .
-            'command:<br /><strong style="color: #f00;">chmod 777 %s</strong>', $path,
-            (file_exists($path) ? $path : dirname($path)));
+            'command:<br />%s', $path,
+            $chmods);
     } else {
         $error = sprintf('<strong>%s</strong> could not be created, <strong>open_basedir' .
             '</strong> restriction in effect, please check your php.ini settings:<br />' .
@@ -151,14 +161,10 @@ function w3_activation_create_required_files() {
         W3TC_CONFIG_DIR,
         W3TC_CACHE_CONFIG_DIR,
         W3TC_CACHE_TMP_DIR);
-    
-    foreach ($directories as $d) {
-        if (!@is_dir($d)) {
-            try{
-                w3_wp_create_folder($d, 'direct');
-            } catch(Exception $ex) {}
-        }
-    }
+
+    try{
+        w3_wp_create_folders($directories, 'direct');
+    } catch(Exception $ex) {}
 }
 
 /**
@@ -208,6 +214,15 @@ function w3_copy_if_not_equal($source_filename, $destination_filename, $method =
  * @throws FileOperationException
  */
 function w3_wp_copy_file($source_filename, $destination_filename, $method = '', $url = '', $context = false) {
+    $contents = @file_get_contents($source_filename);
+    if ($contents) {
+        @file_put_contents($destination_filename, $contents);
+    }
+    if (@file_exists($destination_filename)) {
+        if (@file_get_contents($destination_filename) == $contents)
+            return;
+    }
+
     w3_wp_request_filesystem_credentials($method, $url, $context);
 
     global $wp_filesystem;
@@ -227,31 +242,12 @@ function w3_wp_copy_file($source_filename, $destination_filename, $method = '', 
  * @throws FileOperationException
  */
 function w3_wp_create_folder($folder, $method = '', $url = '', $context = false) {
-    w3_wp_request_filesystem_credentials($method, $url, $context);
+    if (!@is_dir($folder) && !@w3_mkdir($folder)) {
+        w3_wp_request_filesystem_credentials($method, $url, $context);
 
-    global $wp_filesystem;
-    if (!$wp_filesystem->mkdir($folder, FS_CHMOD_DIR)) {
-        throw new FileOperationException('Could not create folder:' . $folder, 'create', 'folder', $folder);
-    }
-}
-
-
-/**
- * @param $folders
- * @param string $method Which method to use when creating
- * @param string $url Where to redirect after creation
- * @param bool|string $context folder to create folders in
- * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
- * @throws FileOperationException
- */
-function w3_wp_create_folders($folders, $method = '', $url = '', $context = false) {
-    w3_wp_request_filesystem_credentials($method, $url, $context);
-
-    global $wp_filesystem;
-
-    foreach($folders as $folder) {
+        global $wp_filesystem;
         if (!$wp_filesystem->mkdir($folder, FS_CHMOD_DIR)) {
-            throw new FileOperationException('Could not create folder: ' . $folder, 'create', 'folder', $folder);
+            throw new FileOperationException('Could not create directory:' . $folder, 'create', 'folder', $folder);
         }
     }
 }
@@ -267,10 +263,24 @@ function w3_wp_create_folders($folders, $method = '', $url = '', $context = fals
 function w3_wp_delete_folders($folders, $method = '', $url = '', $context = false) {
     $delete_folders = array();
     foreach($folders as $folder) {
-        if (is_dir($folder) && file_exists($folder))
+        if (is_dir($folder))
             $delete_folders[] = $folder;
     }
     if (empty($delete_folders))
+        return;
+
+    $removed = true;
+    foreach ($delete_folders as $folder) {
+        w3_rmdir($folder);
+        if (@is_dir($folder))
+            @rmdir($folder);
+        if (@is_dir($folder)) {
+            $removed = false;
+            break;
+        }
+    }
+
+    if ($removed)
         return;
     w3_wp_request_filesystem_credentials($method, $url, $context);
 
@@ -280,7 +290,7 @@ function w3_wp_delete_folders($folders, $method = '', $url = '', $context = fals
         w3_rmdir($folder);
         if (file_exists($folder))
             if (!$wp_filesystem->rmdir($folder, FS_CHMOD_DIR)) {
-                throw new FileOperationException('Could not delete folder: ' . $folder, 'delete', 'folder', $folder);
+                throw new FileOperationException('Could not delete directory: ' . $folder, 'delete', 'folder', $folder);
             }
     }
 }
@@ -294,35 +304,13 @@ function w3_wp_delete_folders($folders, $method = '', $url = '', $context = fals
  * @throws FileOperationException
  */
 function w3_wp_delete_file($file, $method = '', $url = '', $context = false) {
-    if (@unlink($file)) {
+    if (!@unlink($file)) {
         w3_wp_request_filesystem_credentials($method, $url, false, $context = false);
 
         global $wp_filesystem;
 
         if (file_exists($file) && !$wp_filesystem->delete($file)) {
             throw new FileOperationException('Could not delete file: ' . $file, 'delete', 'file', $file);
-        }
-    }
-}
-
-/**
- * Copy files using WordPress filesystem functions.
- * @param $files
- * @param string $method Which method to use when creating
- * @param string $url Where to redirect after creation
- * @param bool|string $context folder to copy too
- * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
- * @throws FileOperationException
- */
-function w3_wp_copy_files($files, $method = '', $url = '', $context = false) {
-    w3_wp_request_filesystem_credentials($method, $url, false, $context);
-
-    global $wp_filesystem;
-    foreach($files as $source_filename => $destination_filename) {
-        $contents = $wp_filesystem->get_contents($source_filename);
-
-        if (!$wp_filesystem->put_contents($destination_filename, $contents, FS_CHMOD_FILE)) {
-            throw new FileOperationException('Could not create file: ' . $destination_filename, 'create', 'file', $destination_filename);
         }
     }
 }
@@ -358,39 +346,6 @@ function w3_wp_request_filesystem_credentials($method = '', $url = '', $context 
 }
 
 /**
- * @param $add_in_files array with key as source and value as destination
- * @param $cache_folders value is the folder path
- * @param string $method Which method to use when creating
- * @param string $url Where to redirect after creation
- * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
- * @throws FileOperationException
- */
-function w3_create_missing_files_and_folders($add_in_files, $cache_folders, $method = '', $url = '') {
-    if (empty($add_in_files) && empty($cache_folders))
-        return;
-
-    w3_wp_request_filesystem_credentials($method, $url);
-
-    global $wp_filesystem;
-
-    foreach($cache_folders as $folder) {
-        if (!$wp_filesystem->mkdir($folder, FS_CHMOD_DIR)) {
-            throw new FileOperationException('Could not create folder:' . $folder, 'create', 'folder', $folder);
-        }
-    }
-    foreach($add_in_files as $source_filename => $destination_filename) {
-        $contents = $wp_filesystem->get_contents($source_filename);
-
-        if (file_exists($destination_filename) && ! $wp_filesystem->delete($destination_filename))
-            throw new FileOperationException('Could not delete file: ' . $destination_filename, 'delete', 'file', $destination_filename);
-
-        if (!$wp_filesystem->put_contents($destination_filename, $contents, FS_CHMOD_FILE)) {
-            throw new FileOperationException('Could not create file: ' . $destination_filename, 'create', 'file', $destination_filename);
-        }
-    }
-}
-
-/**
  * Create files
  * @param $files array(from file => to file)
  * @param string $method
@@ -398,8 +353,20 @@ function w3_create_missing_files_and_folders($add_in_files, $cache_folders, $met
  * @param bool|string path to folder where files should be created
  * @throws FileOperationException
  */
-function w3_create_files($files, $method = '', $url = '', $context = false) {
+function w3_wp_create_files($files, $method = '', $url = '', $context = false) {
     if (empty($files))
+        return;
+
+    $created = true;
+    foreach ($files as $source_filename => $destination_filename) {
+        $contents = @file_get_contents($source_filename);
+        if ($contents && !@file_put_contents($destination_filename, $contents)) {
+            $created = false;
+            break;
+        }
+    }
+
+    if ($created)
         return;
 
     w3_wp_request_filesystem_credentials($method, $url, $context);
@@ -419,47 +386,53 @@ function w3_create_files($files, $method = '', $url = '', $context = false) {
 }
 
 /**
- * Create folders
+ * Create folders in wp content
  * @param $folders array(folderpath1, folderpath2, ...)
  * @param string $method
  * @param string $url
+ * @param bool|string $context folder to create folders in
+ * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
  * @throws FileOperationException
  */
-function w3_create_folders($folders, $method = '', $url = '') {
-    if (empty($add_in_files) && empty($folders))
+function w3_wp_create_folders($folders, $method = '', $url = '', $context = false) {
+    if (empty($folders))
         return;
 
-    w3_wp_request_filesystem_credentials($method, $url);
+    $created = true;
+    foreach ($folders as $folder) {
+        if (!@is_dir($folder) && !@w3_mkdir_from($folder, WP_CONTENT_DIR)) {
+            $created = false;
+            break;
+        }
+    }
+    if ($created)
+        return;
+
+    w3_wp_request_filesystem_credentials($method, $url, $context);
 
     global $wp_filesystem;
 
     foreach($folders as $folder) {
-        if (!$wp_filesystem->mkdir($folder, FS_CHMOD_DIR)) {
-            throw new FileOperationException('Could not create folder:' . $folder, 'create', 'folder', $folder);
+        if (!@is_dir($folder) && !$wp_filesystem->mkdir($folder, FS_CHMOD_DIR)) {
+            throw new FileOperationException('Could not create directory:' . $folder, 'create', 'folder', $folder);
         }
     }
 }
 
 /**
  * Tries to write file content
- * @param $filename path to file
- * @param $content data to write
+ * @param string $filename path to file
+ * @param string $content data to write
  * @param string $method Which method to use when creating
  * @param string $url Where to redirect after creation
  * @param bool|string $context folder in which to write file
  * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
  * @throws FileOperationException
- * @return true;
+ * @return bool;
  */
-function w3_write_to_file($filename, $content, $method = '', $url = '', $context = false) {
-    if (is_writable($filename)) {
-        if (@file_put_contents($filename, $content))
-            return true;
-        w3_wp_request_filesystem_credentials('direct');
-        global $wp_filesystem;
-        if ($wp_filesystem->put_contents($filename, $content))
-            return true;
-    }
+function w3_wp_write_to_file($filename, $content, $method = '', $url = '', $context = false) {
+    if (@file_put_contents($filename, $content))
+        return true;
 
     w3_wp_request_filesystem_credentials($method, $url, $context);
     $permissions = array(0644, 0664, 0666);
@@ -479,7 +452,7 @@ function w3_write_to_file($filename, $content, $method = '', $url = '', $context
 
 /**
  * Tries to read file content
- * @param $filename path to file
+ * @param string $filename path to file
  * @param string $method Which method to use when creating
  * @param string $url Where to redirect after creation
  * @param bool|string $context folder to read from
@@ -487,7 +460,11 @@ function w3_write_to_file($filename, $content, $method = '', $url = '', $context
  * @throws FilesystemCredentialException with S/FTP form if it can't get the required filesystem credentials
  * @throws FileOperationException
  */
-function w3_read_from_file($filename, $method = '', $url = '', $context = false) {
+function w3_wp_read_from_file($filename, $method = '', $url = '', $context = false) {
+    $content = @file_get_contents($filename);
+    if ($content)
+        return $content;
+
     w3_wp_request_filesystem_credentials($method, $url, $context);
 
     global $wp_filesystem;
@@ -511,6 +488,10 @@ function w3_read_from_file($filename, $method = '', $url = '', $context = false)
 function w3_chmod_dir($dir, $permission, $recursive = false, $method = '', $url = '', $context = false) {
     if (!is_dir($dir) || !file_exists($dir))
         return false;
+
+    if (@chmod($dir, $permission))
+        return true;
+
     w3_wp_request_filesystem_credentials($method, $url, $context);
 
     global $wp_filesystem;
@@ -523,7 +504,7 @@ function w3_chmod_dir($dir, $permission, $recursive = false, $method = '', $url 
 }
 
 /**
- * @param $file path to file
+ * @param string $file path to file
  * @param $permission
  * @param string $method
  * @param string $url
@@ -556,7 +537,7 @@ function w3_chmod_file($file, $permission, $method = '', $url = '', $context = f
 function w3_enable_maintenance_mode($time = null) {
     if (is_null($time))
         $time = 'time()';
-    w3_write_to_file(w3_get_site_root() . '/.maintenance', "<?php \$upgrading = $time; ?>");
+    w3_wp_write_to_file(w3_get_site_root() . '/.maintenance', "<?php \$upgrading = $time; ?>");
 }
 
 /**

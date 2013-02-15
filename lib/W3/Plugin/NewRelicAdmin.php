@@ -61,12 +61,14 @@ class W3_Plugin_NewRelicAdmin extends W3_Plugin {
          * @var $nerser W3_NewRelicService
          */
         $nerser = w3_instance('W3_NewRelicService');
-        $account_id = $nerser->get_account_id($api_key);
-        if ($account_id) {
-            $this->_config->set('newrelic.account_id', $account_id);
-            $this->_config->save();
-            echo $account_id;
-        }
+        try {
+            $account_id = $nerser->get_account_id($api_key);
+            if ($account_id) {
+                $this->_config->set('newrelic.account_id', $account_id);
+                $this->_config->save();
+                echo $account_id;
+            }
+        }catch (Exception $ex) {}
         die();
     }
 
@@ -83,12 +85,12 @@ class W3_Plugin_NewRelicAdmin extends W3_Plugin {
             $api_key = $config_master->get_string('newrelic.api_key');
         }
         $nerser = new W3_NewRelicService($api_key);
-        if(empty($account_id) || $account_id == '')
-            $account_id = $nerser->get_account_id();
         $newrelic_applications = array();
         try {
+            if(empty($account_id) || $account_id == '')
+                $account_id = $nerser->get_account_id();
             $newrelic_applications = $nerser->get_applications($account_id);
-        }catch(Exception $ex) {}
+        } catch (Exception $ex) {}
         echo json_encode($newrelic_applications);
         die();
     }
@@ -148,7 +150,7 @@ class W3_Plugin_NewRelicAdmin extends W3_Plugin {
         }
 
         w3_require_once(W3TC_INC_DIR . '/functions/activation.php');
-        w3_write_to_file($path, $data);
+        w3_wp_write_to_file($path, $data);
     }
 
     /**
