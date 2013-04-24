@@ -81,16 +81,9 @@ class W3_Plugin_TotalCache extends W3_Plugin {
          * CloudFlare support
          */
         if ($this->_config->get_boolean('cloudflare.enabled')) {
-            add_action('wp_set_comment_status', array(
-                &$this,
-                'cloudflare_set_comment_status'
-            ), 1, 2);
-
             w3_require_once(W3TC_LIB_W3_DIR . '/CloudFlare.php');
             @$w3_cloudflare = new W3_CloudFlare();
-
             $w3_cloudflare->fix_remote_addr();
-
         }
 
         if ($this->_config->get_string('common.support') == 'footer') {
@@ -139,6 +132,17 @@ class W3_Plugin_TotalCache extends W3_Plugin {
      * @return void
      */
     function init() {
+        if (is_multisite()) {
+            global $w3_current_blog_id, $current_blog;
+            if ($w3_current_blog_id != $current_blog->blog_id && !isset($GLOBALS['w3tc_blogmap_register_new_item'])) {
+				$url = w3_get_host() . $_SERVER['REQUEST_URI'];
+				$pos = strpos($url, '?');
+				if ($pos !== false)
+					$url = substr($url, 0, $pos);
+				$GLOBALS['w3tc_blogmap_register_new_item'] = $url;
+			}
+		}
+
         if (isset($GLOBALS['w3tc_blogmap_register_new_item'])) {
             $do_redirect = false;
             // true value is a sign to just generate config cache

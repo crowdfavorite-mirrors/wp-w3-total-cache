@@ -1385,15 +1385,16 @@ class W3_PgCache {
 
     /**
      * Parses dynamic tags
-     * @return string
      */
     function _parse_dynamic(&$buffer) {
-        $buffer = preg_replace_callback('~<!--\s*mfunc(.*)-->(.*)<!--\s*/mfunc\s*-->~Uis', array(
+        if (!defined('W3TC_DYNAMIC_SECURITY'))
+            return;
+        $buffer = preg_replace_callback('~<!--\s*mfunc\s*' . W3TC_DYNAMIC_SECURITY . '(.*)-->(.*)<!--\s*/mfunc\s*' . W3TC_DYNAMIC_SECURITY . '\s*-->~Uis', array(
             &$this,
             '_parse_dynamic_mfunc'
         ), $buffer);
 
-        $buffer = preg_replace_callback('~<!--\s*mclude(.*)-->(.*)<!--\s*/mclude\s*-->~Uis', array(
+        $buffer = preg_replace_callback('~<!--\s*mclude\s*' . W3TC_DYNAMIC_SECURITY . '(.*)-->(.*)<!--\s*/mclude\s*' . W3TC_DYNAMIC_SECURITY . '\s*-->~Uis', array(
             &$this,
             '_parse_dynamic_mclude'
         ), $buffer);
@@ -1463,7 +1464,9 @@ class W3_PgCache {
      * @return boolean
      */
     function _has_dynamic(&$buffer) {
-        return preg_match('~<!--\s*m(func|clude)(.*)-->(.*)<!--\s*/m(func|clude)\s*-->~Uis', $buffer);
+        if (!defined('W3TC_DYNAMIC_SECURITY'))
+            return false;
+        return preg_match('~<!--\s*m(func|clude)\s*' . W3TC_DYNAMIC_SECURITY . '(.*)-->(.*)<!--\s*/m(func|clude)\s*' . W3TC_DYNAMIC_SECURITY . '\s*-->~Uis', $buffer);
     }
 
     /**

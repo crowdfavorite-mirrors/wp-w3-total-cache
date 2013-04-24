@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 define('W3TC', true);
-define('W3TC_VERSION', '0.9.2.8');
+define('W3TC_VERSION', '0.9.2.9');
 define('W3TC_POWERED_BY', 'W3 Total Cache/' . W3TC_VERSION);
 define('W3TC_EMAIL', 'w3tc@w3-edge.com');
 define('W3TC_PAYPAL_URL', 'https://www.paypal.com/cgi-bin/webscr');
@@ -121,9 +121,18 @@ function w3_filename_to_url($filename) {
 
     $site_url_ssl = w3_get_url_ssl(w3_get_home_url());
 
-    $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_document_root())), '/');
+    $dir = '';
+    if (substr(WP_CONTENT_DIR, 0, strlen(w3_get_site_root())) == w3_get_site_root()) {
+        $dir = str_replace($site_url_ssl, '', w3_get_url_ssl(w3_get_site_url()));
+        $dir = trim($dir, '/');
+        if ($dir)
+            $dir = '/' . $dir;
+        $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_site_root())), '/');
+    }
+    else
+        $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_document_root())), '/');
 
-    $url = $site_url_ssl . '/' . $content_path . $uri_from_wp_content;
+    $url = $site_url_ssl . $dir . '/' . $content_path . $uri_from_wp_content;
 
     return $url;
 }

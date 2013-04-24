@@ -4806,72 +4806,6 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
     }
 
     /**
-     * Send CloudFlare API request
-     *
-     * @return void
-     */
-    function action_cloudflare_api_request() {
-        $result = false;
-        $response = null;
-
-        $actions = array(
-            'devmode',
-            'sec_lvl',
-            'fpurge_ts'
-        );
-
-        w3_require_once(W3TC_LIB_W3_DIR . '/Request.php');
-
-        $email = W3_Request::get_string('email');
-        $key = W3_Request::get_string('key');
-        $zone = W3_Request::get_string('zone');
-        $action = W3_Request::get_string('action');
-        $value = W3_Request::get_string('value');
-
-        if (!$email) {
-            $error = 'Empty email.';
-        } elseif (!$key) {
-            $error = 'Empty key.';
-        } elseif (!$zone) {
-            $error = 'Empty zone.';
-        } elseif (!in_array($action, $actions)) {
-            $error = 'Invalid action.';
-        } else {
-            $config = array(
-                'email' => $email,
-                'key' => $key,
-                'zone' => $zone
-            );
-
-            w3_require_once(W3TC_LIB_W3_DIR . '/CloudFlare.php');
-            @$w3_cloudflare = new W3_CloudFlare($config);
-
-            @set_time_limit($this->_config->get_integer('timelimit.cloudflare_api_request'));
-
-            $response = $w3_cloudflare->api_request($action, $value);
-
-            if ($response) {
-                if ($response->result == 'success') {
-                    $result = true;
-                    $error = 'OK';
-                } else {
-                    $error = $response->msg;
-                }
-            } else {
-                $error = 'Unable to make CloudFlare API request.';
-            }
-        }
-
-        $return = array(
-            'result' => $result,
-            'error' => $error,
-            'response' => $response
-        );
-
-        echo json_encode($return);
-    }
-
-    /**
      * Self test action
      */
     function action_self_test() {
@@ -5583,7 +5517,7 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         $cacheflush->cdncache_purge();
     }
 
-    /**
+   /**
      * Purge the CloudFlare cache
      * @return void
      */

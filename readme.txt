@@ -1,9 +1,9 @@
-=== Plugin Name ===
+﻿=== Plugin Name ===
 Contributors: fredericktownes
 Tags: wpo, web performance optimization, performance, availability, scaling, scalability, user experience, cache, caching, page cache, css cache, js cache, db cache, disk cache, disk caching, database cache, http compression, gzip, deflate, minify, cdn, content delivery network, media library, performance, speed, multiple hosts, css, merge, combine, unobtrusive javascript, compress, optimize, optimizer, javascript, js, cascading style sheet, plugin, yslow, yui, google, google rank, google page speed, mod_pagespeed, new relic, newrelic, aws, s3, cloudfront, sns, elasticache, rds, flash media server, amazon web services, cloud files, rackspace, akamai, max cdn, netdna, limelight, cloudflare, mod_cloudflare, microsoft, microsoft azure, iis, nginx, litespeed, apache, varnish, xcache, apc, eacclerator, wincache, mysql, w3 total cache, batcache, wp cache, wp super cache, quick cache, wp minify, bwp-minify, buddypress
 Requires at least: 2.8
 Tested up to: 3.5.1
-Stable tag: 0.9.2.8
+Stable tag: 0.9.2.9
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -731,6 +731,13 @@ It's quite difficult to recall all of the innovators that have shared their thou
 Please reach out to all of these people and support their projects if you're so inclined.
 
 == Changelog ==
+= 0.9.2.9 =
+* Fixed saving settings issue with CloudFlare on activation
+* Fixed issue with DbCache and Object Cache flushing
+* Improved security for CloudFlare API calls
+* Improved security for mfunc, now disabled by default and requires security string in order to execute
+* Improved behavior of GET string, used for detecting blogs in disk enhanced page caching mode for multi site to prevent redirect loops and other issues
+
 = 0.9.2.8 =
 * Fixed /tmp file creation issue when saving settings
 * Fixed an issue with auto minify
@@ -1234,5 +1241,5 @@ Please reach out to all of these people and support their projects if you're so 
 
 == Upgrade Notice ==
 
-= 0.9.2.8 =
-Thanks for using W3 Total Cache! As always, this update is very strongly recommended. The recent releases attempted to use WordPress' built in support for managing files and folders and clearly has not worked. Since W3TC is a caching plugin, file management is a critical issue that will cause lots of issues if it doesn't work perfectly. This release is hopefully the last attempt to restore file management back to the reliability of previous versions (0.9.2.4 etc). We realize that having *any* problems is not acceptable, but caching means changing server behavior so while this plugin is still in pre-release we're trying to work on learning the lessons.
+= 0.9.2.9 =
+Thanks for using W3 Total Cache! As always, this update is very strongly recommended. This release addresses security issues for Cloudflare users as well as users that implement fragment caching via the mfunc functionality. For those using mfunc, temporarily disable page caching to allow yourself time to check the FAQ tab for new usage instructions; if you have a staging environment, that is the most convenient way to test prior to production roll out.

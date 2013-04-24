@@ -36,50 +36,50 @@ class W3_Plugin_DbCache extends W3_Plugin {
 
         add_action('wp_trash_post', array(
             &$this,
-            'on_change'
+            'on_post_change'
         ), 0);
 
         add_action('save_post', array(
             &$this,
-            'on_change'
+            'on_post_change'
         ), 0);
 
         global $wp_version;
         if (version_compare($wp_version,'3.5', '>=')) {
             add_action('clean_post_cache', array(
             &$this,
-            'on_change'
+            'on_post_change'
             ), 0, 2);
         }
 
         add_action('comment_post', array(
             &$this,
-            'on_change'
+            'on_comment_change'
         ), 0);
 
         add_action('edit_comment', array(
             &$this,
-            'on_change'
+            'on_comment_change'
         ), 0);
 
         add_action('delete_comment', array(
             &$this,
-            'on_change'
+            'on_comment_change'
         ), 0);
 
         add_action('wp_set_comment_status', array(
             &$this,
-            'on_change'
-        ), 0);
+            'on_comment_status'
+        ), 0, 2);
 
         add_action('trackback_post', array(
             &$this,
-            'on_change'
+            'on_comment_change'
         ), 0);
 
         add_action('pingback_post', array(
             &$this,
-            'on_change'
+            'on_comment_change'
         ), 0);
 
         add_action('switch_theme', array(
@@ -101,7 +101,7 @@ class W3_Plugin_DbCache extends W3_Plugin {
 
         add_action('delete_post', array(
             &$this,
-            'on_change'
+            'on_post_change'
         ), 0);
     }
 
@@ -168,7 +168,7 @@ class W3_Plugin_DbCache extends W3_Plugin {
             wp_clear_scheduled_hook('w3_dbcache_cleanup');
         }
     }
-    
+	
     /**
      * Does disk cache cleanup
      *
@@ -205,7 +205,21 @@ class W3_Plugin_DbCache extends W3_Plugin {
     /**
      * Change action
      */
-    function on_change($post_id = 0, $post = null) {
+    function on_change() {
+        static $flushed = false;
+
+        if (!$flushed) {
+            $flusher = w3_instance('W3_CacheFlush');
+            $flusher->dbcache_flush();
+
+            $flushed = true;
+        }
+    }
+
+    /**
+     * Change post action
+     */
+    function on_post_change($post_id = 0, $post = null) {
         static $flushed = false;
 
         if (!$flushed) {
@@ -220,6 +234,34 @@ class W3_Plugin_DbCache extends W3_Plugin {
             $flusher->dbcache_flush();
             
             $flushed = true;
+        }
+    }
+
+    /**
+     * Comment change action
+     *
+     * @param integer $comment_id
+     */
+    function on_comment_change($comment_id) {
+        $post_id = 0;
+
+        if ($comment_id) {
+            $comment = get_comment($comment_id, ARRAY_A);
+            $post_id = !empty($comment['comment_post_ID']) ? (int) $comment['comment_post_ID'] : 0;
+        }
+
+        $this->on_post_change($post_id);
+    }
+
+    /**
+     * Comment status action
+     *
+     * @param integer $comment_id
+     * @param string $status
+     */
+    function on_comment_status($comment_id, $status) {
+        if ($status === 'approve' || $status === '1') {
+            $this->on_comment_change($comment_id);
         }
     }
 }

@@ -115,6 +115,121 @@ function w3tc_minify_css_theme(theme) {
     w3tc_minify_css_file_clear();
 }
 
+function w3tc_minify_filename_test(url, success, failure) {
+    var timestamp = new Date().getTime();
+    jQuery.get(url + '?t=' + timestamp, function (data) {
+        success(data, url);
+    })
+    .fail(function (data) {
+        failure(data, url);
+    });
+}
+function w3tc_minify_filename_test_once(url, filename) {
+    jQuery(function($) {
+        w3tc_minify_filename_test(url + filename + '.css',
+            function(data, url) {
+                if (data == 'retry') {
+                    $.get(url, function(data2) {
+                        if (data2 != 'content ok') {
+                            $('#minify_auto_error').show();
+                            w3tc_start_minify_try_solve();
+                        } else {
+                            $.get(ajaxurl, {action:'w3tc_minify_disable_filename_test'});
+                        }
+                    });
+                } else if (data != 'content ok') {
+                    $('#minify_auto_error').show();
+                    w3tc_start_minify_try_solve();
+                }
+            },
+            function (data, url) {
+                $('#minify_auto_error').show();
+                w3tc_start_minify_try_solve();
+            }
+        );
+    })
+}
+
+function w3tc_filename_auto_solve(testUrl) {
+    var minLength = 100, maxLength = 246;
+    jQuery('#minify_auto_test_loading').toggleClass('minify_auto_test');
+    w3tc_do_filename_auto_step(testUrl,minLength, maxLength, maxLength, false);
+}
+
+function w3tc_do_filename_auto_step(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful) {
+    tryLength = Math.floor(tryLength);
+    var testString = new Array(tryLength+1).join('X');
+    var timestamp = new Date().getTime();
+    var url = testUrl + testString + '.css' + '?t=' + timestamp;
+    jQuery.get(url, function (data) {
+        if (data == 'retry') {
+            jQuery.get(url, function (retryResult) {
+                if (retryResult == 'content ok') {
+                    w3tc_do_success(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful);
+                } else {
+                    jQuery.get(ajaxurl, {action:'w3tc_minify_disable_filename_test'});
+                    alert('Plugin could not solve the Minify Auto issue automatically.');
+                    jQuery('#minify_auto_test_loading').toggleClass('minify_auto_test');
+                    jQuery('#minify_auto_error').html('<p>Minify Auto does not work properly. Try using Minify Manual instead ' +
+                        'or try another  Minify cache method.</p>');
+                }
+            });
+        } else if (data == 'content ok') {
+            w3tc_do_success(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful);
+        } else {
+            w3tc_do_failure(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful);
+        }
+    }).fail(function (data) {
+            w3tc_do_failure(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful);
+    });
+}
+
+function w3tc_do_success(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful) {
+    if ((maxLength - tryLength) < 10) {
+        w3tc_finish_with(tryLength);
+        return;
+    }
+    w3tc_do_filename_auto_step(testUrl, tryLength, maxLength, (tryLength + maxLength) / 2, true);
+}
+
+function w3tc_do_failure(testUrl,minLength, maxLength, tryLength, minTestedAndSuccessful) {
+    if ((tryLength - minLength) < 10) {
+        if (minTestedAndSuccessful) {
+            w3tc_finish_with(minLength);
+            return;
+        } else    if (tryLength <= minLength) {
+            jQuery.get(ajaxurl, {action:'w3tc_minify_disable_filename_test'});
+            alert('Plugin could not solve the Minify Auto issue automatically.');
+            jQuery('#minify_auto_test_loading').toggleClass('minify_auto_test');
+            jQuery('#minify_auto_error').html('<p>Minify Auto does not work properly. Try using Minify Manual instead ' +
+                'or try another Minify cache method. You can also try a lower filename length value manually on ' +
+                '<a href="admin.php?page=w3tc_minify#advanced">settings page</a></p>');
+            return;
+        }
+        else {
+            w3tc_do_filename_auto_step(testUrl,minLength, maxLength, minLength, false);
+            return;
+        }
+    }
+    w3tc_do_filename_auto_step(testUrl, minLength, maxLength, (tryLength + minLength) / 2, minTestedAndSuccessful);
+}
+
+function w3tc_finish_with(length) {
+    jQuery.get(ajaxurl, {action:'w3tc_minify_change_filename_length', maxlength: length}, function (changeResult) {
+        if (changeResult == 1) {
+            jQuery('#minify_auto_filename_length').val(length);
+            jQuery('#minify_auto_test_loading').toggleClass('minify_auto_test');
+            alert('Minify Auto filename length changed too ' + length);
+            jQuery('#minify_auto_error').hide();
+        } else {
+            jQuery('#minify_auto_test_loading').toggleClass('minify_auto_test');
+            alert('Tried to change Minify Auto filename length too ' + length + ' but failed.');
+            jQuery('#minify_auto_error').hide();
+        }
+    });
+
+}
+
 function w3tc_cdn_get_cnames() {
     var cnames = [];
 
@@ -199,12 +314,12 @@ function w3tc_cloudflare_api_request(action, value, nonce) {
         return false;
     }
 
-    jQuery.post('admin.php?page=w3tc_general', {
-        w3tc_cloudflare_api_request: 1,
+    jQuery.post(ajaxurl, {
+        action:'w3tc_cloudflare_api_request',
         email: email.val(),
         key: key.val(),
         zone: zone.val(),
-        action: action,
+        command: action,
         value: value,
         _wpnonce: nonce
     }, function(data) {
@@ -332,9 +447,8 @@ jQuery(function() {
     jQuery('.button-rating').live('click', function() {
         window.open('http://wordpress.org/support/view/plugin-reviews/w3-total-cache?rate=5#postform', '_blank');
     });
-    jQuery('#w3tc_technical_info').hide();
-    jQuery('#w3tc_read_technical_info').click(function() {
-        jQuery('#w3tc_technical_info').toggle();
+    jQuery('.w3tc_read_technical_info').click(function() {
+        jQuery('.w3tc_technical_info').toggle();
     });
 
     jQuery('#newrelic_verify_api_key').click(function() {
@@ -1460,6 +1574,19 @@ jQuery(function() {
         } else {
             rules.css('display', 'block');
             btn.val('Hide required changes');
+        }
+    });
+
+    // show hide missing files
+    jQuery('.w3tc-show-ftp-form').click(function() {
+        var btn = jQuery(this), rules = jQuery('.w3tc-ftp-form');
+
+        if (rules.is(':visible')) {
+            rules.css('display', 'none');
+            btn.val('Update via FTP');
+        } else {
+            rules.css('display', 'block');
+            btn.val('Cancel FTP Update');
         }
     });
 

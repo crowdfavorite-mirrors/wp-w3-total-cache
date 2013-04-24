@@ -552,7 +552,7 @@
                     <?php endif; ?>
                 </td>
             </tr>
-            <?php if ($this->is_network_and_master()): ?>
+            <?php if ($this->is_network_and_master() && !w3_force_master()): ?>
                 <tr>
                     <th>Network policy:</th>
                     <td>

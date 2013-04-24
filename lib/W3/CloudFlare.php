@@ -62,6 +62,14 @@ class W3_CloudFlare {
      */
     function api_request($action, $value = null) {
         w3_require_once(W3TC_INC_DIR . '/functions/http.php');
+        if (empty($this->_cf_config['email']) || !filter_var($this->_cf_config['email'], FILTER_VALIDATE_EMAIL))
+            return false;
+
+        if (empty($this->_cf_config['key']) || !is_string($this->_cf_config['key']))
+            return false;
+
+        if (empty($this->_cf_config['zone']) || !is_string($this->_cf_config['zone']) || strpos($this->_cf_config['zone'], '.') === false)
+            return false;
 
         $url = sprintf('%s?email=%s&tkn=%s&z=%s&a=%s', W3TC_CLOUDFLARE_API_URL, urlencode($this->_cf_config['email']), urlencode($this->_cf_config['key']), urlencode($this->_cf_config['zone']), urlencode($action));
 
@@ -96,7 +104,15 @@ class W3_CloudFlare {
      */
     function external_event($type, $value) {
         w3_require_once(W3TC_INC_DIR . '/functions/http.php');
+        if (empty($this->_cf_config['email']) || !filter_var($this->_cf_config['email'], FILTER_VALIDATE_EMAIL))
+            return false;
 
+        if (empty($this->_cf_config['key']) || !is_string($this->_cf_config['key']))
+            return false;
+			
+		if ($this->get_last_error())
+			return false;
+			
         $url = sprintf('%s?u=%s&tkn=%s&evnt_t=%s&evnt_v=%s', W3TC_CLOUDFLARE_EXTERNAL_EVENT_URL, urlencode($this->_cf_config['email']), urlencode($this->_cf_config['key']), urlencode($type), urlencode($value));
         $response = w3_http_get($url);
 
@@ -113,7 +129,7 @@ class W3_CloudFlare {
      * @return void
      */
     function fix_remote_addr() {
-        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        if (isset($_SERVER['HTTP_CF_CONNECTING_IP']) && !empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
             w3_require_once(W3TC_INC_DIR . '/functions/ip_in_range.php');
             if (strpos($_SERVER["REMOTE_ADDR"], ":") === FALSE) {
                 $ip4_ranges = $this->_config->get_array('cloudflare.ips.ip4');
@@ -150,6 +166,8 @@ class W3_CloudFlare {
 
     /**
      * Check
+     * @throws FilesystemOperationException
+     * @throws FileOperationException
      */
     public function update_ip_ranges() {
         $ip4_diff = $ip6_diff = false;

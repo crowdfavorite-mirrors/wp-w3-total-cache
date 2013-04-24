@@ -33,6 +33,7 @@ class W3_Plugins {
             array('class_name' => 'W3_Plugin_NewRelic', 'enable_options' => 'newrelic.enabled')
         );
         if (is_admin()) {
+		    $this->_plugins[] = array('class_name' => 'W3_Plugin_CloudFlareAdmin', 'enable_options' => 'cloudflare.enabled');
             $this->_plugins[] = array('class_name' => 'W3_Plugin_TotalCacheAdmin', 'enable_options' => null);
             $this->_plugins[] = array('class_name' => 'W3_Plugin_NewRelicAdmin', 'enable_options' => null);
             $this->_plugins[] = array('class_name' => 'W3_Widget_SpreadTheWord', 'enable_options' => null);
