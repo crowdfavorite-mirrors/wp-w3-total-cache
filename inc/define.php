@@ -146,15 +146,15 @@ function w3_filename_to_url($filename) {
     $site_url_ssl = w3_get_url_ssl(w3_get_home_url());
 
     $dir = '';
-    if (substr(WP_CONTENT_DIR, 0, strlen(w3_get_site_root())) == w3_get_site_root()) {
+    if (substr(trailingslashit(WP_CONTENT_DIR), 0, strlen(trailingslashit(w3_get_site_root()))) == w3_get_site_root()) {
         $dir = str_replace($site_url_ssl, '', w3_get_url_ssl(w3_get_site_url()));
         $dir = trim($dir, '/\\');
         if ($dir)
             $dir = '/' . $dir;
-        $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_site_root())), '/\\');
+        $content_path = trim(substr(trailingslashit(WP_CONTENT_DIR), strlen(trailingslashit(w3_get_site_root()))), '/\\');
     }
     else
-        $content_path = trim(substr(WP_CONTENT_DIR, strlen(w3_get_document_root())), '/\\');
+        $content_path = trim(substr(trailingslashit(WP_CONTENT_DIR), strlen(trailingslashit(w3_get_document_root()))), '/\\');
 
     $url = $site_url_ssl . $dir . '/' . $content_path . $uri_from_wp_content;
 
