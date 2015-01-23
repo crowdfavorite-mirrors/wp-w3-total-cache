@@ -102,7 +102,7 @@ class W3_Plugin_NotificationsAdmin {
         w3_require_once(W3TC_INC_FUNCTIONS_DIR . '/admin_ui.php');
         $message = sprintf(__('<p>You can now keep W3 Total Cache up-to-date without having to worry about new features breaking your website. There will be more releases with bug fixes, security fixes and settings updates. </p>
         <p>Also, you can now try out our new features as soon as they\'re ready. %s to enable "edge mode" and unlock pre-release features. %s</p>', 'w3-total-cache')
-            ,'<a href="' . w3_admin_url('admin.php?page='. $this->_page .'&w3tc_edge_mode_enable').'" class="button">' . __('Click Here', 'w3-total-cache') . '</a>'
+            ,'<a href="' . w3_admin_url(wp_nonce_url('admin.php', 'w3tc') . '&page='. $this->_page .'&w3tc_edge_mode_enable').'" class="button">' . __('Click Here', 'w3-total-cache') . '</a>'
             , w3_button_hide_note(__('Hide this message', 'w3-total-cache'), 'edge_mode', '', true,'','w3tc_default_hide_note_custom')
         );
         w3_e_notification_box($message, 'edge-mode');

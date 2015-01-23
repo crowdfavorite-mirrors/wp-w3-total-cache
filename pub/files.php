@@ -31,7 +31,7 @@ $nonce = $_REQUEST['nonce'];
 $stored_nonce = get_site_option('w3tc_support_request') ? get_site_option('w3tc_support_request') : get_option('w3tc_support_request');
 $stored_attachment = get_site_option('w3tc_support_request') ? get_site_option('attachment_' . $md5) : get_option('attachment_' . $md5);
 
-if (file_exists($attachment_location) && $nonce == $stored_nonce && $stored_attachment == $attachment_location) {
+if (file_exists($attachment_location) && $nonce == $stored_nonce && !empty($stored_nonce) && $stored_attachment == $attachment_location) {
     w3_require_once(W3TC_INC_DIR . '/functions/mime.php');
     $type = w3_get_mime_type($attachment_location);
     header($_SERVER["SERVER_PROTOCOL"] . " 200 OK");

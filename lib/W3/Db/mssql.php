@@ -1056,6 +1056,7 @@ class W3_Db_Driver extends SQL_Translations {
 
                 $dbhname = "dbh" . $action;
                 $this->$dbhname = @mssql_connect( $details[ 'db_host' ], $details[ 'db_user' ], $details[ 'db_password' ] );
+                $this->is_mysql = false;
 
                 if (!$this->$dbhname ) {
                         $this->bail( sprintf( /*WP_I18N_DB_CONN_ERROR*/"

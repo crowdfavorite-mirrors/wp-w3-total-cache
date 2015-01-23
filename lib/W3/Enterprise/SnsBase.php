@@ -64,6 +64,8 @@ class W3_Enterprise_SnsBase {
             $debug = print_r($backtrace, true);
             $data .= $debug . "\n";
         }
+        $data = strtr($data, '<>', '..');
+        
         $filename = w3_debug_log('sns');
 
         return @file_put_contents($filename, $data, FILE_APPEND);

@@ -141,7 +141,7 @@ class W3_Licensing extends W3_Plugin {
 
             if ($license) {
                 $status = $license->license;
-                if ('host_valid' == $status) {
+                if (in_array($status, array('valid', 'host_valid'))) {
                     $version = 'pro';
                 } elseif (in_array($status, array('site_inactive','valid')) && w3tc_is_pro_dev_mode()) {
                     $status = 'valid';

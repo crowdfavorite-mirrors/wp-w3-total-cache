@@ -61,8 +61,13 @@ class W3_AdminActions_DefaultActionsAdmin {
     function action_default_save_licence_key() {
         $license = W3_Request::get_string('license_key');
         try {
+            $old_config = new W3_Config();
+
             $this->_config->set('plugin.license_key', $license);
             $this->_config->save();
+
+            w3_instance('W3_Licensing')->possible_state_change($this->_config,
++                $old_config);
         } catch(Exception $ex){
             echo json_encode(array('result' => 'failed'));
             exit;

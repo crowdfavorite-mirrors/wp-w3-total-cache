@@ -614,6 +614,7 @@ class W3_Cdn_Base {
      */
     function _log($local_path, $remote_path, $error) {
         $data = sprintf("[%s] [%s => %s] %s\n", date('r'), $local_path, $remote_path, $error);
+        $data = strtr($data, '<>', '..');
 
         $filename = w3_debug_log('cdn');
 

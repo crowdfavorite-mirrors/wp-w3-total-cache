@@ -335,6 +335,7 @@ class W3_Minify {
      */
     function log($msg) {
         $data = sprintf("[%s] [%s] [%s] %s\n", date('r'), $_SERVER['REQUEST_URI'], (!empty($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '-'), $msg);
+        $data = strtr($data, '<>', '..');
 
         $filename = w3_debug_log('minify');
         return @file_put_contents($filename, $data, FILE_APPEND);

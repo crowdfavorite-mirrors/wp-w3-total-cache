@@ -691,9 +691,9 @@ jQuery(function() {
             jQuery('#plugin_license_key_verify').val(original_button_value);
             if (data == 'expired') {
                 alert('The license key has expired. Please renew it.');
-            }else if(data == 'host_valid') {
+            }else if(data == 'host_valid' || data == 'valid') {
                 alert('License key is correct.');
-            }else if (data == 'valid') {
+            }else if (data == 'another_site_active') {
                 alert('License key is correct but already in use on another site. See the FAQ for how to enable Pro version in development mode.');
             }else {
                 alert('The license key is not valid. Please check it and try again.');

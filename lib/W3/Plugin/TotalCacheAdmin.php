@@ -143,11 +143,8 @@ class W3_Plugin_TotalCacheAdmin extends W3_Plugin {
         $action_handler->set_default($this);
         $action_handler->set_current_page($this->_page);
         if ($action && $action_handler->exists($action)) {
-            if (strpos($action, 'view') !== false)
-                if (!wp_verify_nonce(W3_Request::get_string('_wpnonce'), 'w3tc'))
-                    wp_nonce_ays('w3tc');
-            else
-                check_admin_referer('w3tc');
+            if (!wp_verify_nonce(W3_Request::get_string('_wpnonce'), 'w3tc'))
+                wp_nonce_ays('w3tc');
 
             try {
                 $action_handler->execute($action);

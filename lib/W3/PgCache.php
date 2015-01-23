@@ -1054,7 +1054,7 @@ class W3_PgCache {
         $engine = $this->_config->get_string('pgcache.engine');
         $debug_info = "<!-- W3 Total Cache: Page cache debug info:\r\n";
         $debug_info .= sprintf("%s%s\r\n", str_pad('Engine: ', 20), w3_get_engine_name($engine));
-        $debug_info .= sprintf("%s%s\r\n", str_pad('Cache key: ', 20), $this->_page_key);
+        $debug_info .= sprintf("%s%s\r\n", str_pad('Cache key: ', 20), w3_escape_comment($this->_page_key));
         $debug_info .= sprintf("%s%s\r\n", str_pad('Caching: ', 20), ($cache ? 'enabled' : 'disabled'));
 
         if (!$cache) {
@@ -1071,7 +1071,7 @@ class W3_PgCache {
             $debug_info .= "Header info:\r\n";
 
             foreach ($headers as $header_name => $header_value) {
-                $debug_info .= sprintf("%s%s\r\n", str_pad($header_name . ': ', 20), w3_escape_comment($header_value));
+                $debug_info .= sprintf("%s%s\r\n", str_pad(w3_escape_comment($header_name) . ': ', 20), w3_escape_comment($header_value));
             }
         }
 

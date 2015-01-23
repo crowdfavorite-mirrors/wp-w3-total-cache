@@ -44,11 +44,8 @@ class W3_AdminActions_EdgeModeActionsAdmin {
             try {
                 w3_wp_write_to_file($config_path, $new_config_data);
             } catch (FilesystemOperationException $ex) {
-                throw new FilesystemModifyException(
-                    $ex->getMessage(), $ex->credentials_form(),
-                    'Edit file <strong>' . $config_path .
-                    '</strong> and add the next lines:', $config_path,
-                    $this->wp_config_evaluation_mode());
+                throw new Exception('Configuration file not writable. Please edit file <strong>' . $config_path .
+                    '</strong> and add the next lines: '. $this->wp_config_evaluation_mode());
             }
             try {
                 $this->_config_admin->set('notes.edge_mode', false);
