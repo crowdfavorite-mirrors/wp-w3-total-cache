@@ -25,7 +25,8 @@ class NetDNAPresentation {
         return $groups;
     }
     public static function get_file_group($uri) {
-        $ext = end(explode('.', $uri));
+        $uri_exploded = explode('.', $uri);
+        $ext = end($uri_exploded);
         switch ($ext) {
             case 'css':
             case 'js':

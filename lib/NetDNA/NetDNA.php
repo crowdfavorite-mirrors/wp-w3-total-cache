@@ -4,27 +4,39 @@ if (!defined('ABSPATH')) {
     die();
 }
 
-w3_require_once(W3TC_LIB_OAUTH_DIR . '/W3tcOAuth.php');
+require_once(W3TC_LIB_DIR . '/OAuth/W3tcOAuth.php');
+require_once('W3tcWpHttpException.php');
 
-require_once("W3tcWpHttpException.php");
-
-/** 
+/**
  * NetDNA REST Client Library
- * 
+ *
  * @copyright 2012
  * @author Karlo Espiritu
  * @version 1.0 2012-09-21
 */
 class NetDNA {
-	
 	public $alias;
 
 	public $key;
 
 	public $secret;
-	
+
 	public $netdnarws_url = 'https://rws.netdna.com';
 
+
+
+    static public function create($authorization_key) {
+        $keys = explode('+', $authorization_key);
+        $alias = '';
+        $consumerkey = '';
+        $consumersecret = '';
+
+        if (sizeof($keys) == 3)
+            list($alias, $consumerkey, $consumersecret) = $keys;
+
+        $api = new NetDNA($alias, $consumerkey, $consumersecret);
+        return $api;
+    }
 
     /**
      * @param string $alias
@@ -37,6 +49,15 @@ class NetDNA {
 		$this->secret = $secret;
 	}
 
+    public function get_zone_domain($name) {
+        return $name . '.' . $this->alias . '.netdna-cdn.com';
+    }
+
+    public function is_valid() {
+        return !empty($this->alias) && !empty($this->key) &&
+            !empty($this->secret);
+    }
+
     /**
      * @param $selected_call
      * @param $method_type
@@ -46,16 +67,17 @@ class NetDNA {
      */
     private function execute($selected_call, $method_type, $params) {
         //increase the http request timeout
-        add_filter( 'http_request_timeout', array($this, 'filter_timeout_time'));
+        add_filter('http_request_timeout', array($this, 'filter_timeout_time'));
+        add_filter('https_ssl_verify', array($this, 'https_ssl_verify'));
+
         $consumer = new W3tcOAuthConsumer($this->key, $this->secret, NULL);
 
 		// the endpoint for your request
-		$endpoint = "$this->netdnarws_url/$this->alias$selected_call"; 
-		
+		$endpoint = "$this->netdnarws_url/$this->alias$selected_call";
+
 		//parse endpoint before creating OAuth request
 		$parsed = parse_url($endpoint);
-		if (array_key_exists("parsed", $parsed))
-		{
+		if (array_key_exists("parsed", $parsed)) {
 		    parse_str($parsed['query'], $params);
 		}
 
@@ -66,15 +88,22 @@ class NetDNA {
 		$sig_method = new W3tcOAuthSignatureMethod_HMAC_SHA1();
 		$req_req->sign_request($sig_method, $consumer, NULL);
 
-        $headers = $request = array();
+        $request = array();
         $request['sslverify'] = false;
         $request['method'] = $method_type;
 
-        if ($method_type == "POST" || $method_type == "PUT" || $method_type == "DELETE") {
-            $request['body'] = $params;
+        if ($method_type == "POST") {
+            $request['body'] = $req_req->to_postdata();
+            $request['headers']['Content-Type'] =
+                'application/x-www-form-urlencoded; charset=' . get_option('blog_charset');
+
+            $url = $req_req->get_normalized_http_url();
+        } else {
+            // notice GET, PUT and DELETE both needs to be passed in URL
+            $url = $req_req->to_url();
         }
 
-        $response = wp_remote_request($req_req, $request);
+        $response = wp_remote_request($url, $request);
 
         $json_output = '';
         if (!is_wp_error($response)) {
@@ -88,6 +117,7 @@ class NetDNA {
             $response_code = $response->get_error_code();
         }
 
+        remove_filter('https_ssl_verify', array($this, 'https_ssl_verify'));
         remove_filter('http_request_timeout', array($this, 'filter_timeout_time'));
 
 		// catch errors
@@ -105,7 +135,6 @@ class NetDNA {
      * @throws W3tcWpHttpException
      */
     public function get($selected_call, $params = array()){
-		 
 		return $this->execute($selected_call, 'GET', $params);
 	}
 
@@ -293,8 +322,9 @@ class NetDNA {
             foreach ($pull_zones ['data']['pullzones'] as $zone) {
                 $zones[] = $zone;
             }
-        } else
+        } else {
             throw new Exception($pull_zones['error']['message']);
+        }
         return $zones;
     }
 
@@ -305,6 +335,13 @@ class NetDNA {
      */
     public function filter_timeout_time($time) {
         return 60;
+    }
+
+    /**
+     * Don't check certificate, some users have limited CA list
+     */
+    public function https_ssl_verify($v) {
+        return false;
     }
 
     /**
@@ -366,6 +403,31 @@ class NetDNA {
     }
 
     /**
+     * Creates custom domains
+     * @param $zone_id
+     * @throws Exception
+     * @return array|null
+     */
+    public function create_custom_domain($zone_id, $custom_domain) {
+        $custom_domain =  json_decode($this->post("/zones/pull/$zone_id/customdomains.json", array(
+            'custom_domain' => $custom_domain)), true);
+        if (preg_match("(200|201)", $custom_domain['code'])) {
+            return $custom_domain;
+        } else
+            throw $this->to_exception($custom_domain);
+    }
+
+    private function to_exception($response) {
+        $message = $response['error']['message'];
+        if (isset($response['data']) && isset($response['data']['errors'])) {
+            foreach ($response['data']['errors'] as $field => $error)
+                $message .= '. ' . $field . ': ' . $error;
+        }
+
+        return new Exception($message);
+    }
+
+    /**
      * Returns custom domains
      * @param $zone_id
      * @throws Exception
@@ -397,4 +459,27 @@ class NetDNA {
         } else
             throw new Exception($zone_data['error']['message']);
     }
+
+    /**
+     * Deletes files from cache
+     * @param $zone_id
+     * @param $files array of relative paths to files to delete
+     *        Deletes whole zone if empty list passed
+     **/
+    public function cache_delete($zone_id, $files = array()) {
+        if (empty($files))
+            $params = array();
+        else
+            $params = array('files' => $files);
+
+        $response = json_decode($this->delete(
+            '/zones/pull.json/' . $zone_id . '/cache',
+            $params), true);
+
+        if (preg_match("(200|201)", $response['code'])) {
+            return true;
+        } else
+            throw $this->to_exception($response);
+    }
+
 }

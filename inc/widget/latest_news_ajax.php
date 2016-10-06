@@ -1,5 +1,11 @@
-<?php if (!defined('W3TC')) die(); ?>
-<?php foreach ($items as $item): ?>
+<?php
+namespace W3TC;
+
+if ( !defined( 'W3TC' ) )
+	die();
+
+?>
+<?php foreach ( $items as $item ): ?>
 <h4>
 	<a href="<?php echo $item['link']; ?>"><?php echo $item['title']; ?></a>
 </h4>

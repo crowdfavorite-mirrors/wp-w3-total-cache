@@ -72,10 +72,9 @@ class Minify_Source {
             }
             $this->filepath = $spec['filepath'];
             $this->_id = $spec['filepath'];
-            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify.php');
             $this->lastModified = filemtime($spec['filepath'])
                 // offset for Windows uploaders with out of sync clocks
-                + round(Minify::$uploaderHoursBehind * 3600);
+                + round(Minify0_Minify::$uploaderHoursBehind * 3600);
         } elseif (isset($spec['id'])) {
             $this->_id = 'id::' . $spec['id'];
             if (isset($spec['content'])) {
@@ -106,8 +105,6 @@ class Minify_Source {
     public function getContent()
     {
         if (isset($this->minifyOptions['processCssImports']) && $this->minifyOptions['processCssImports']) {
-            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/ImportProcessor.php');
-
             $content = Minify_ImportProcessor::process($this->filepath);
         } else {
             $content = (null !== $this->filepath)

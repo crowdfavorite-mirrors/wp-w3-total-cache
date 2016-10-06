@@ -3,19 +3,17 @@ define('NEWRELIC_API_BASE', 'https://api.newrelic.com');
 
 /**
  * Interacts with the New Relic Connect API
+ * deprecated
  * @link newrelic.github.com/newrelic_api/
  */
 class NewRelicAPI {
     private $_api_key;
-    private $_account_id;
 
     /**
      * @param string $api_key New Relic API Key
-     * @param string $account_id optional
      */
-    function __construct($api_key, $account_id = '') {
+    function __construct($api_key) {
         $this->_api_key = $api_key;
-        $this->_account_id = $account_id;
     }
 
     /**
@@ -38,7 +36,7 @@ class NewRelicAPI {
         } else {
             switch ($response['response']['code']) {
                 case '403':
-                    $message = __('Invalid API key or Account ID', 'w3-total-cache');
+                    $message = __('Invalid API key', 'w3-total-cache');
                     break;
                 default:
                     $message = $response['response']['message'];
@@ -75,26 +73,11 @@ class NewRelicAPI {
     }
 
     /**
-     * Get the Dashboard HTML fragment for provided application or for all applications connected with the API key
-     * @param int $application_id
-     * @return bool
-     */
-    function get_dashboard($application_id = 0) {
-        if ($application_id)
-            $dashboard = $this->_get("/application_dashboard?application_id=$application_id");
-        else
-            $dashboard = $this->_get('/application_dashboard');
-        return $dashboard;
-    }
-
-    /**
      * Get applications connected with the API key and provided account id.
      * @param int $account_id
      * @return array
      */
-    function get_applications($account_id = 0) {
-        if ($account_id == 0)
-            $account_id = $this->_account_id;
+    function get_applications($account_id) {
         $applications = array();
         if ($xml_string  = $this->_get("/api/v1/accounts/{$account_id}/applications.xml")) {
             $xml = simplexml_load_string($xml_string);
@@ -110,10 +93,10 @@ class NewRelicAPI {
      * @param $application_id
      * @return array array(metric name => metric value)
      */
-    function get_application_summary($application_id) {
+    function get_application_summary($account_id, $application_id) {
         $summary = array();
 
-        if ($xml_string = $this->_get("/api/v1/accounts/{$this->_account_id}/applications/{$application_id}/threshold_values.xml")) {
+        if ($xml_string = $this->_get("/api/v1/accounts/{$account_id}/applications/{$application_id}/threshold_values.xml")) {
             $xml = simplexml_load_string($xml_string);
             foreach($xml->{'threshold_value'} as $value) {
                 $summary[(string)$value['name']] = (string)$value['formatted_metric_value'];
@@ -143,9 +126,9 @@ class NewRelicAPI {
      * @param $application_id
      * @return array|mixed
      */
-    function get_application_settings($application_id) {
+    function get_application_settings($account_id, $application_id) {
         $settings = array();
-        if ($xml_string = $this->_get("/api/v1/accounts/:account_id/application_settings/{$application_id}.xml")) {
+        if ($xml_string = $this->_get("/api/v1/accounts/{$account_id}/application_settings/{$application_id}.xml")) {
             $xml = simplexml_load_string($xml_string);
             $settings=json_decode(json_encode((array) $xml), 1);
         }
@@ -158,9 +141,9 @@ class NewRelicAPI {
      * @param $settings
      * @return bool
      */
-    function update_application_settings($application_id, $settings) {
+    function update_application_settings($account_id, $application_id, $settings) {
         $supported = array('alerts_enabled', 'app_apdex_t','rum_apdex_t','rum_enabled');
-        $call = "/api/v1/accounts/{$this->_account_id}/application_settings/{$application_id}.xml";
+        $call = "/api/v1/accounts/{$account_id}/application_settings/{$application_id}.xml";
         $params = array();
         foreach($settings as $key => $value)  {
             if (in_array($key, $supported))
@@ -206,13 +189,13 @@ class NewRelicAPI {
     function get_metric_data($account_id, $application_id, $begin, $to, $metrics, $field, $summary = true) {
         $metricParamArray = array();
         foreach($metrics as $metric) {
-            $metricParamArray[] = 'metrics[]=' . $metric;
+            $metricParamArray[] = 'metrics[]=' . urlencode($metric);
         }
         $metricQS = implode('&', $metricParamArray);
-        $fieldsQS = 'field=' . $field;
-        $agentQS =  'agent_id=' . $application_id;
-        $beginQS = 'begin=' . $begin;
-        $toQS = 'end=' . $to;
+        $fieldsQS = 'field=' . urlencode($field);
+        $agentQS =  'agent_id=' . urlencode($application_id);
+        $beginQS = 'begin=' . urlencode($begin);
+        $toQS = 'end=' . urlencode($to);
         $summaryQS = $summary ? 'summary=1' : 'summary=0';
         $command = $beginQS . '&' . $toQS . '&' . $metricQS . '&' . $fieldsQS . '&' . $agentQS . '&' . $summaryQS;
 

@@ -13,12 +13,18 @@ class Minify_IgnoredCommentPreserver {
         $this->_ignoredComments = $ignoredComments;
     }
 
-    public function search(&$html) {
-        $html = preg_replace_callback('/<!--[\\s\\S]*?-->/', array($this, '_callback'), $html);
+    public function search($html) {
+        $html = preg_replace_callback('/<!--[\\s\\S]*?-->/', 
+            array($this, '_callback'), 
+            $html);
+        return $html;
     }
 
-    public function replace(&$html) {
-        $html = str_replace(array_keys($this->_placeholders), array_values($this->_placeholders), $html);
+    public function replace($html) {
+        $html = str_replace(array_keys($this->_placeholders), 
+            array_values($this->_placeholders), 
+            $html);
+        return $html;
     }
 
     protected function _callback($match) {

@@ -4,43 +4,6 @@
  * Wraps around New Relic PHP Agent functions and makes sure the function exists.
  */
 class NewRelicWrapper {
-    /**
-     * @param W3_Config $config
-     * @param W3_Config $config_master
-     * @param bool $do_merge if to merge with network main site
-     * @return string
-     */
-    public static function get_wordpress_appname($config, $config_master, $do_merge = true) {
-        if (w3_is_network()) {
-            if ($config_master->get_boolean('newrelic.use_network_wide_id')) {
-                $appname = $config_master->get_string('newrelic.appname');
-            } else {
-                $merge = $config->get_boolean('newrelic.merge_with_network');
-                $merge_name = '';
-                if ($do_merge && $merge && w3_get_blog_id() != 0) {
-                    $merge_name = ';' . $config_master->get_string('newrelic.appname');
-                }
-                if (w3_get_blog_id() != 0 && !$config->get_boolean('common.force_master')) {
-                    $appname = $config->get_string('newrelic.appname', '');
-                    if (empty($appname)) {
-                        $prefix = $config->get_string('newrelic.appname_prefix');
-                        $appname = $prefix . trim(w3_get_home_domain() . w3_get_site_path(), '/');
-                    }
-                } else if (w3_get_blog_id() != 0) {
-                    $prefix = $config->get_string('newrelic.appname_prefix');
-                    $appname = $prefix . trim(w3_get_home_domain() . w3_get_site_path(), '/');
-                } else {
-                    $appname = $config->get_string('newrelic.appname');
-                }
-
-                $appname = $appname . $merge_name;
-            }
-        } else {
-            $appname = $config->get_string('newrelic.appname');
-        }
-        return $appname;
-    }
-
     public static function set_appname($name, $license = '', $xmit =false) {
         self::call('newrelic_set_appname',array($name, $license, $xmit));
     }

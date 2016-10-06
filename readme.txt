@@ -1,49 +1,51 @@
 === Plugin Name ===
 Contributors: fredericktownes
-Tags: w3totalcache, w3 totalcache, w3total cache, wpo, web performance optimization, performance, availability, scaling, scalability, user experience, cache, caching, page cache, css cache, js cache, db cache, disk cache, disk caching, database cache, http compression, gzip, deflate, minify, cdn, content delivery network, media library, performance, speed, multiple hosts, css, merge, combine, unobtrusive javascript, compress, optimize, optimizer, javascript, js, cascading style sheet, plugin, yslow, yui, google, google rank, google page speed, mod_pagespeed, new relic, newrelic, aws, s3, cloudfront, sns, elasticache, rds, flash media server, amazon web services, cloud files, rackspace, akamai, max cdn, limelight, cloudflare, mod_cloudflare, microsoft, microsoft azure, iis, nginx, litespeed, apache, varnish, xcache, apc, eacclerator, wincache, mysql, w3 total cache, batcache, wp cache, wp super cache, quick cache, wp minify, bwp-minify, buddypress
+Tags: seo, w3totalcache, w3 totalcache, w3total cache, wpo, web performance optimization, performance, availability, scaling, scalability, user experience, cache, caching, page cache, css cache, js cache, db cache, disk cache, disk caching, database cache, http compression, gzip, deflate, minify, cdn, content delivery network, media library, performance, speed, multiple hosts, css, merge, combine, unobtrusive javascript, compress, optimize, optimizer, javascript, js, cascading style sheet, plugin, yui, yui compressor, zend, opcache, apcu, google drive, highwinds, full site delivery, full site acceleration, google, google rank, google page speed, mod_pagespeed, new relic, newrelic, aws, s3, cloudfront, sns, elasticache, rds, flash media server, amazon web services, cloud files, rackspace, akamai, max cdn, limelight, cloudflare, mod_cloudflare, microsoft, microsoft azure, iis, nginx, litespeed, apache, varnish, xcache, apc, eacclerator, wincache, redis, narcissus, wpmml, mysql, w3 total cache, batcache, wp cache, wp super cache, quick cache, wp minify, bwp-minify, buddypress
 Requires at least: 3.2
-Tested up to: 4.0.1
-Stable tag: 0.9.4.1
+Tested up to: 4.6.1
+Stable tag: 0.9.5.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Easy Web Performance Optimization (WPO) using caching: browser, page, object, database, minify and content delivery network support.
+Search Engine (SEO) &amp; Performance Optimization (WPO) via caching. Integrated caching: CDN, Minify, Page, Object, Fragment, Database support.
 
 == Description ==
 
-The **only** WordPress Performance Optimization (WPO) framework; designed to improve user experience and page speed.
+W3 Total Cache improves the user experience of your site by increasing website performance, reducing download times via features like content delivery network (CDN) integration.
 
-Recommended by web hosts like: Page.ly, Synthesis, DreamHost, MediaTemple, Go Daddy, Host Gator and countless more.
+The **only** WordPress Performance Optimization (WPO) framework; designed to improve user experience and Search Engine Optimization (SEO). Recommended by countless web hosts.
 
-Trusted by countless companies like: AT&T, stevesouders.com, mattcutts.com, mashable.com, smashingmagazine.com, makeuseof.com, yoast.com, kiss925.com, pearsonified.com, lockergnome.com, johnchow.com, ilovetypography.com, webdesignerdepot.com, css-tricks.com and tens of thousands of others.
-
-W3 Total Cache improves the user experience of your site by increasing server performance, reducing the download times and providing transparent content delivery network (CDN) integration.
+Trusted by numerous companies like: AT&T, stevesouders.com, mattcutts.com, mashable.com, smashingmagazine.com, makeuseof.com, kiss925.com, pearsonified.com, lockergnome.com, johnchow.com, ilovetypography.com, webdesignerdepot.com, css-tricks.com and tens of thousands of others.
 
 An inside look:
 
 http://www.youtube.com/watch?v=rkmrQP8S5KY
 
-Benefits:
+*BENEFITS*
 
-* At least 10x improvement in overall site performance (Grade A in [YSlow](http://developer.yahoo.com/yslow/) or significant [Google Page Speed](http://code.google.com/speed/page-speed/) improvements) **when fully configured**
+* Improvements in search engine result page rankings, especially for mobile-friendly websites and sites that use SSL
+* At least 10x improvement in overall site performance (Grade A in [WebPagetest](https://www.webpagetest.org/) or significant [Google Page Speed](http://code.google.com/speed/page-speed/) improvements) **when fully configured**
 * Improved conversion rates and "[site performance](http://googlewebmastercentral.blogspot.com/2009/12/your-sites-performance-in-webmaster.html)" which [affect your site's rank](http://googlewebmastercentral.blogspot.com/2010/04/using-site-speed-in-web-search-ranking.html) on Google.com
-* "Instant" subsequent page views: browser caching
-* Optimized progressive render: pages start rendering quickly
+* "Instant" repeat page views: browser caching
+* Optimized progressive render: pages start rendering quickly and can be interacted with more quickly
 * Reduced page load time: increased visitor time on site; visitors view more pages
 * Improved web server performance; sustain high traffic periods
 * Up to 80% bandwidth savings via minify and HTTP compression of HTML, CSS, JavaScript and feeds
 
-Features:
+*FEATURES*
 
 * Compatible with shared hosting, virtual private / dedicated servers and dedicated servers / clusters
 * Transparent content delivery network (CDN) management with Media Library, theme files and WordPress itself
 * Mobile support: respective caching of pages by referrer or groups of user agents including theme switching for groups of referrers or user agents
-* Caching of (minified and compressed) pages and posts in memory or on disk or on CDN (mirror only)
+* Accelerated Mobile Pages (AMP) support
+* Secure Socket Layer (SSL) support
+* Caching of (minified and compressed) pages and posts in memory or on disk or on (FSD) CDN (by user agent group)
 * Caching of (minified and compressed) CSS and JavaScript in memory, on disk or on CDN
-* Caching of feeds (site, categories, tags, comments, search results) in memory or on disk or on CDN (mirror only)
+* Caching of feeds (site, categories, tags, comments, search results) in memory or on disk or on CDN
 * Caching of search results pages (i.e. URIs with query string variables) in memory or on disk
 * Caching of database objects in memory or on disk
 * Caching of objects in memory or on disk
+* Caching of fragments in memory or on disk
 * Minification of posts and pages and feeds
 * Minification of inline, embedded or 3rd party JavaScript (with automated updates)
 * Minification of inline, embedded or 3rd party CSS (with automated updates)
@@ -52,12 +54,18 @@ Features:
 * Non-blocking JavaScript embedding
 * Import post attachments directly into the Media Library (and CDN)
 * WP-CLI support for cache purging, query string updating and more
+* Various security features
+* Caching statistics for performance insights
+* Extension framework for customization or extensibility e.g. New Relic, Cloudflare, WPML and more
+* Reverse proxy integration via Nginx or Varnish
 
 Improve the user experience for your readers without having to change WordPress, your theme, your plugins or how you produce your content.
 
 == Frequently Asked Questions ==
 
 = Why does speed matter? =
+
+Search engines like Google, measure and factor in the speed of web sites in their ranking algorithm. When they recommend a site they want to make sure users find what they're looking for quickly. So in effect you and Google should have the same objective.
 
 Speed is among the most significant success factors web sites face. In fact, your site's speed directly affects your income (revenue) &mdash; it's a fact. Some high traffic sites conducted research and uncovered the following:
 
@@ -66,8 +74,6 @@ Speed is among the most significant success factors web sites face. In fact, you
 * Amazon.com: **+100 ms** (speed decrease) -> **-1% sales loss** [[1](http://home.blarg.net/~glinden/StanfordDataMining.2006-11-29.ppt)]
 
 A thousandth of a second is not a long time, yet the impact is quite significant. Even if you're not a large company (or just hope to become one), a loss is still a loss. However, there is a solution to this problem, take advantage.
-
-Search engines like Google, measure and factor in the speed of web sites in their ranking algorithm. When they recommend a site they want to make sure users find what they're looking for quickly. So in effect you and Google should have the same objective.
 
 Many of the other consequences of poor performance were discovered more than a decade ago:
 
@@ -83,7 +89,7 @@ Many of the other consequences of poor performance were discovered more than a d
 
 There are a number of [resources](http://www.websiteoptimization.com/speed/tweak/psychology-web-performance/) that have been documenting the role of performance in success on the web, W3 Total Cache exists to give you a framework to tune your application or site without having to do years of research.
 
-= Why is W3 Total Cache better than other cache plugins? =
+= Why is W3 Total Cache better than other caching solutions? =
 
 **It's a complete framework.** Most cache plugins available do a great job at achieving a couple of performance aims. Our plugin remedies numerous performance reducing aspects of any web site going far beyond merely reducing CPU usage (load) and bandwidth consumption for HTML pages alone. Equally important, the plugin requires no theme modifications, modifications to your .htaccess (mod_rewrite rules) or programming compromises to get started. Most importantly, it's the only plugin designed to optimize all practical hosting environments small or large. The options are many and setup is easy.
 
@@ -95,7 +101,7 @@ It's in every web site owner's best interest is to make sure that the performanc
 
 = Which WordPress versions are supported? =
 
-To use all features in the suite, a minimum of version WordPress 2.8 with PHP 5 is required. Earlier versions will benefit from our Media Library Importer to get them back on the upgrade path and into a CDN of their choosing.
+To use all features in the suite, a minimum of version WordPress 2.8 with PHP 5.3 is required. Earlier versions will benefit from our Media Library Importer to get them back on the upgrade path and into a CDN of their choosing.
 
 = Why doesn't minify work for me? =
 
@@ -109,12 +115,14 @@ We're always working to make this more simple and straight forward in future rel
 
 That depends on how you use your site and where most of your readers read your site (regionally). Here's a short list:
 
-* [MaxCDN](http://www.maxcdn.com/), [Discount Coupon Code](http://tracking.maxcdn.com/c/15753/3982/378?u=https%3A%2F%2Fsecure.maxcdn.com%2F%3Fpackage%3Dstarter%26coupon%3Dw3tc)
-* [EdgeCast / MediaTemple ProCDN](http://www.edgecast.com/)
-* [Amazon Cloudfront](http://aws.amazon.com/cloudfront/)
-* [Rackspace Cloud Files](http://www.rackspace.com/cloud/files/)
-* [Limelight Networks](http://www.limelight.com/)
-* [Akamai](http://www.akamai.com/)
+* [MaxCDN](https://www.maxcdn.com/), [Discount Coupon Code](http://tracking.maxcdn.com/c/15753/3982/378?u=https%3A%2F%2Fsecure.maxcdn.com%2F%3Fpackage%3Dstarter%26coupon%3Dw3tc)
+* [Amazon Cloudfront](https://aws.amazon.com/cloudfront/)
+* [CloudFlare](https://www.cloudflare.com/features-cdn/)
+* [Verizon Digital Media Services (formerly EdgeCast)](https://www.verizondigitalmedia.com/)
+* [MediaTemple TrueSpeed (formerly ProCDN)](https://mediatemple.net/services/truespeed-cdn/)
+* [Rackspace Cloud Files](https://www.rackspace.com/cloud/files)
+* [Limelight Networks](https://www.limelight.com/)
+* [Akamai / Cotendo](https://www.akamai.com/)
 
 = What about comments? Does the plugin slow down the rate at which comments appear? =
 
@@ -138,7 +146,7 @@ Yes, indirectly - if you have a lot of bloggers working with you, you will find 
 
 = Which web servers do you support? =
 
-We are aware of no incompatibilities with [apache](http://httpd.apache.org/) 1.3+, [IIS](http://www.iis.net/) 5+ or [litespeed](http://litespeedtech.com/products/webserver/overview/) 4.0.2+. If there's a web server you feel we should be actively testing (e.g. [lighttpd](http://www.lighttpd.net/)), we're [interested in hearing](http://www.w3-edge.com/contact/).
+We are aware of no incompatibilities with [apache](http://httpd.apache.org/) 1.3+, [nginx](https://www.nginx.com/solutions/web-server/) 0.7+, [IIS](http://www.iis.net/) 5+ or [litespeed](https://www.litespeedtech.com/products/litespeed-web-server/overview) 4.0.2+. If there's a web server you feel we should be actively testing (e.g. [lighttpd](https://www.lighttpd.net/)), we're [interested in hearing](https://www.w3-edge.com/contact/).
 
 = Is this plugin server cluster and load balancer friendly? =
 
@@ -160,10 +168,6 @@ Use the "Help" button available on the Minify settings tab. Once open, the tool 
 
 Technically no, a CDN is a high performance cache that stores static assets (your theme files, media library etc) in various locations throughout the world in order to provide low latency access to them by readers in those regions.
 
-= What if I don't want to work with a CDN right now, is there any other use for this feature? =
-
-Yes! You can take advantage of the [pipelining](http://www.mozilla.org/projects/netlib/http/pipelining-faq.html) support in some browsers by creating a sub-domain for the static content for your site. So you could select the "Origin Push / Self-hosted" method of the General Settings tab. Create static.domain.com on your server (and update your DNS zone) and then specify the FTP details for it in the plugin configuration panel and you're done. If you disable the scripting options on your server you'll find that your server will actually respond slightly faster from that sub-domain because it's just sending files and not processing them.
-
 = How do I use an Origin Pull (Mirror) CDN? =
 Login to your CDN providers control panel or account management area. Following any set up steps they provide, create a new "pull zone" or "bucket" for your site's domain name. If there's a set up wizard or any troubleshooting tips your provider offers, be sure to review them. In the CDN tab of the plugin, enter the hostname your CDN provider provided in the "replace site's hostname with" field. You should always do a quick check by opening a test file from the CDN hostname, e.g. http://cdn.domain.com/favicon.ico. Troubleshoot with your CDN provider until this test is successful.
 
@@ -171,7 +175,7 @@ Now go to the General tab and click the checkbox and save the settings to enable
 
 = How do I configure Amazon Simple Storage Service (Amazon S3) or Amazon CloudFront as my CDN? =
 
-First [create an S3 account](http://aws.amazon.com/); it may take several hours for your account credentials to be functional. Next, you need to obtain your "Access key ID" and "Secret key" from the "Access Credentials" section of the "[Security Credentials](http://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key)" page of "My Account." Make sure the status is "active." Next, make sure that "Amazon Simple Storage Service (Amazon S3)" is the selected "CDN type" on the "General Settings" tab, then save the changes. Now on the "Content Delivery Network Settings" tab enter your "Access key," "Secret key" and enter a name (avoid special characters and spaces) for your bucket in the "Create a bucket" field by clicking the button of the same name. If using an existing bucket simply specify the bucket name in the "Bucket" field. Click the "Test S3 Upload" button and make sure that the test is successful, if not check your settings and try again. Save your settings.
+First [create an S3 account](http://aws.amazon.com/) (unless using origin pull); it may take several hours for your account credentials to be functional. Next, you need to obtain your "Access key ID" and "Secret key" from the "Access Credentials" section of the "[Security Credentials](http://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key)" page of "My Account." Make sure the status is "active." Next, make sure that "Amazon Simple Storage Service (Amazon S3)" is the selected "CDN type" on the "General Settings" tab, then save the changes. Now on the "Content Delivery Network Settings" tab enter your "Access key," "Secret key" and enter a name (avoid special characters and spaces) for your bucket in the "Create a bucket" field by clicking the button of the same name. If using an existing bucket simply specify the bucket name in the "Bucket" field. Click the "Test S3 Upload" button and make sure that the test is successful, if not check your settings and try again. Save your settings.
 
 Unless you wish to use CloudFront, you're almost done, skip to the next paragraph if you're using CloudFront. Go to the "General Settings" tab and click the "Enable" checkbox and save the settings to enable CDN functionality. Empty the cache for the changes to take effect. If preview mode is active you will need to "deploy" your changes for them to take effect.
 
@@ -188,17 +192,6 @@ First [create an account](http://www.rackspacecloud.com/cloud_hosting_products/f
 You may optionally, specify up to 10 hostnames to use rather than the default hostname, doing so will improve the render performance of your site's pages.
 
 Now go to the General tab and click the "Enable" checkbox and save the settings to enable CDN functionality and empty the cache for the changes to take effect.  If preview mode is active you will need to "deploy" your changes for them to take effect.
-
-= My YSlow score is low because it doesn't recognize my CDN, what can I do? =
-
-Rule 2 says to use a content delivery network (CDN). The score for this rule is computed by checking the hostname of each component against the list of known CDNs. Unfortunately, the list of "known CDNs" are the ones used by Yahoo!. Most likely these are not relevant to your web site, except for potentially yui.yahooapis.com. If you want an accurate score for your web site, you can add your CDN hostnames to YSlow using Firefox's preferences. Here are the steps to follow:
-
-* Go to about:config in Firefox. You'll see the current list of preferences.
-* Right-click in the window and choose New and String to create a new string preference.
-* Enter extensions.yslow.cdnHostnames for the preference name.
-* For the string value, enter the hostname of your CDN, for example, mycdn.com. Do not use quotes. If you have multiple CDN hostnames, separate them with commas.
-
-If you specify CDN hostnames in your preferences, they'll be shown under the details for Rule 2 in the Performance view.
 
 = What is the purpose of the "modify attachment URLs" button? =
 
@@ -239,23 +232,17 @@ Typically, you should tell your web host about the permission issue and they sho
 You can however try adding <em>define('FS_METHOD', 'direct');</em> to wp-config.php to circumvent the file and folder checks.
 
 = This is too good to be true, how can I test the results? =
+
 You will be able to see it instantly on each page load, but for tangible metrics, consider the following tools:
 
-* [Mozilla Firefox](http://www.mozilla.com/firefox/) + [Firebug](http://getfirebug.com/) + [Yahoo! YSlow](http://developer.yahoo.com/yslow/)
-* [Mozilla Firefox](http://www.mozilla.com/firefox/) + [Firebug](http://getfirebug.com/) + [Google Page Speed](http://code.google.com/speed/page-speed/)
-* [Mozilla Firefox](http://www.mozilla.com/firefox/) + [Firebug](http://getfirebug.com/) + [Hammerhead](http://stevesouders.com/hammerhead/)
-* [Google Chrome](http://www.google.com/chrome) + [Google Speed Tracer](http://code.google.com/webtoolkit/speedtracer/)
-* [Pingdom](http://tools.pingdom.com/)
-* [WebPagetest](http://www.webpagetest.org/test)
-* [Gomez Instant Test Pro](http://www.gomez.com/instant-test-pro/)
-* [Resource Expert Droid](http://redbot.org/)
-* [Web Caching Tests](http://www.procata.com/cachetest/)
-* [Port80 Compression Check](http://www.port80software.com/tools/compresscheck.asp)
-* [A simple online web page compression / deflate / gzip test tool](http://www.gidnetwork.com/tools/gzip-test.php)
+* [Google Page Speed](https://developers.google.com/speed/pagespeed/)
+* [WebPagetest](https://www.webpagetest.org/test)
+* [Pingdom](https://tools.pingdom.com/)
+* [DynaTrace (formerly Gomez) Performance Test](https://www.dynatrace.com/en_us/application-performance-management/products/performance-center.html)
 
 = I don't have time to deal with this, but I know I need it. Will you help me? =
 
-Yes! Please [reach out to us](http://www.w3-edge.com/contact/) and we'll get you acclimated so you can "set it and forget it."
+Yes! Please [reach out to us](https://www.w3-edge.com/contact/) and we'll get you acclimated so you can "set it and forget it."
 
 Install the plugin to read the full FAQ on the plugins FAQ tab.
 
@@ -265,7 +252,7 @@ Install the plugin to read the full FAQ on the plugins FAQ tab.
 1. Login as an administrator to your WordPress Admin account. Using the "Add New" menu option under the "Plugins" section of the navigation, you can either search for: w3 total cache or if you've downloaded the plugin already, click the "Upload" link, find the .zip file you download and then click "Install Now". Or you can unzip and FTP upload the plugin to your plugins directory (wp-content/plugins/). In either case, when done wp-content/plugins/w3-total-cache/ should exist.
 1. Locate and activate the plugin on the "Plugins" page. Page caching will **automatically be running** in basic mode. Set the permissions of wp-content and wp-content/uploads back to 755, e.g. in the terminal: `# chmod 755 /var/www/vhosts/domain.com/httpdocs/wp-content/`.
 1. Now click the "Settings" link to proceed to the "General Settings" tab; in most cases, "disk enhanced" mode for page cache is a "good" starting point.
-1. The "Compatibility Mode" option found in the advanced section of the "Page Cache Settings" tab will enable functionality that optimizes the interoperablity of caching with WordPress, is disabled by default, but highly recommended. Years of testing in hundreds of thousands of installations have helped us learn how to make caching behave well with WordPress. The tradeoff is that disk enhanced page cache performance under load tests will be decreased by ~20% at scale.
+1. The "Compatibility mode" option found in the advanced section of the "Page Cache Settings" tab will enable functionality that optimizes the interoperablity of caching with WordPress, is disabled by default, but highly recommended. Years of testing in hundreds of thousands of installations have helped us learn how to make caching behave well with WordPress. The tradeoff is that disk enhanced page cache performance under load tests will be decreased by ~20% at scale.
 1. *Recommended:* On the "Minify Settings" tab, all of the recommended settings are preset. If auto mode causes issues with your web site's layout, switch to manual mode and use the help button to simplify discovery of your CSS and JS files and groups. Pay close attention to the method and location of your JS group embeddings. See the plugin's FAQ for more information on usage.
 1. *Recommended:* On the "Browser Cache" tab, HTTP compression is enabled by default. Make sure to enable other options to suit your goals.
 1. *Recommended:* If you already have a content delivery network (CDN) provider, proceed to the "Content Delivery Network" tab and populate the fields and set your preferences. If you do not use the Media Library, you will need to import your images etc into the default locations. Use the Media Library Import Tool on the "Content Delivery Network" tab to perform this task. If you do not have a CDN provider, you can still improve your site's performance using the "Self-hosted" method. On your own server, create a subdomain and matching DNS Zone record; e.g. static.domain.com and configure FTP options on the "Content Delivery Network" tab accordingly. Be sure to FTP upload the appropriate files, using the available upload buttons.
@@ -278,6 +265,43 @@ Install the plugin to read the full FAQ on the plugins FAQ tab.
 * Read [testimonials](https://twitter.com/w3edge/favorites) from W3TC users.
 
 == Press: Mentions, Tutorials &amp; Reviews ==
+
+**March 2015**
+
+* [Make WordPress 10x Faster By W3 Total Cache + CloudFlare](http://www.bloggingspell.com/w3-total-cache-cloudflare/), Abrar Mohi Shafee
+
+**February 2015**
+
+* [WordPress 4.1 vs WordPress 4.0 Performance Comparison](https://www.conetix.com.au/blog/wordpress-41-vs-wordpress-40-performance), Tim Butler
+
+**December 2014**
+
+* [Don’t Blog Unless You Use These 11 Tools](http://www.quicksprout.com/2014/12/29/dont-blog-unless-you-are-using-these-11-tools/), Neil Patel
+
+**November 2014:**
+
+* [10 Must Have WordPress Plugins – 2014 Edition](http://www.sitepoint.com/10-must-wordpress-plugins-2014/), James George
+
+**October 2014:**
+
+* [The best WordPress plugins revealed by 39 WordPress enthusiasts](https://psdtowp.net/wordpress-plugins.html), PSD to WordPress
+
+**September 2014:**
+
+* [Using New Relic to Monitor WordPress Performance](http://code.tutsplus.com/tutorials/using-new-relic-to-monitor-wordpress-performance--cms-22002), Jeff Reifman
+
+**July 2014:**
+
+* [40+ Essential Tips, Tools and Resources to Start a WordPress Blog](https://zapier.com/blog/wordpress-blog-tips-tools-resources/), Kristi Hines
+
+**April 2014:**
+
+* [Configuring W3 Total Cache: An Introduction](http://code.tutsplus.com/tutorials/perfect-configurations-of-w3-total-cache-plugin-for-beginners--wp-35364), Ahmad Awais
+* [25+ Must-Have WordPress Plugins for 2014](http://premium.wpmudev.org/blog/25-must-have-wordpress-plugins-for-2014/), Raelene Wilson
+
+**February 2014:**
+
+* [Best WordPress Plugins: 40 Experts Share Their Favorite WordPress Plugins](http://www.wpkube.com/best-wordpress-plugins/), Devesh Sharma
 
 **August 2013:**
 
@@ -747,9 +771,70 @@ Please reach out to all of these people and support their projects if you're so 
 
 == Changelog ==
 
-= 0.9.4.1 =
-* Fixed security issue if debug mode is enabled XSS vector exists HTML comments. CVE-2014-8724, Tobias Glemser
-* Fixed security issue with missing nonces, Ryan Satterfield
+= 0.9.5.1 =
+* Fixed missing namespace, which caused issues with other implementations of Google APIs
+* Fixed handling Cloudflare zone list being incomplete for users with many zones
+* Added extension to support Accelerated Mobile Pages (AMP)
+* Added notification for users that are still using PHP 5.2 (end of life in 2011)
+* Improved default settings
+* Improved compatibility with Yoast SEO sitemap caching
+* Improved compatability with Jetpack
+* Improved directory handling on IIS
+* Improved backwards compatibility for 3rd party implementations against legacy W3TC functions
+
+= 0.9.5 =
+* Fixed XSS vulnerability
+* Fixed issues with dismissing overlays
+* Fixed handling of tilde in URLs
+* Fixed issue with HTTP compression header when using mfunc calls
+* Fixed cache ID issue with minify in network mode
+* Fixed rare issue of caching empty document when some PHP errors occur in themes or plugins
+* Fixed caching of query strings
+* Added support for APCu Opcode Cache
+* Added support for Redis
+* Added support for Google Drive
+* Added support for Amazon S3-compatible stroage services
+* Added support for PECL memcached
+* Added support for srcset elements
+* Added support for Rackspace CDN Origin Pull
+* Added support for minification of external fonts
+* Added support for WOFF2 font format
+* Added support for FTPS (FTP-SSL, S-FTP)
+* Added YUI Compressor's PHP Port of the CSS minifier
+* Added Narcissus' JS minifier
+* Added purge of parent page when attachments are added or updated
+* Added Highwinds CDN provider
+* Added "Validate Timestamps" option for compatible opcode caches functions like apc.stat are enabled
+* Added Full Site Delivery for Pro subscribers
+* Added HTTP Strict Transport Security (HSTS) support
+* Added a sample extension for developers to reference
+* Added Rackspace Cloud Files Multi-Region Support
+* Added more support for exclusions to database cache
+* Added more optionality to minifiers
+* Added WPML Performance Extension
+* Added use of [namespace](http://php.net/manual/en/language.namespaces.rationale.php) which creates mininum dependency on version PHP 5.3
+* Improved PHP 5.6 compatibility
+* Improved PHP 7 compatibility
+* Improved performance menu in admin bar, including purging of specific cache engines and more
+* Improved SSL interoperability
+* Improved reliablity of test buttons
+* Improved nomenclature of caching files for higher cache hit rates
+* Improved nginx compatibility
+* Improved WP CLI support
+* Improved Cloudflare compatibility (now using latest APIs), Cloudflare must be re-authorized
+* Improved AWS API compatibility (now using latest APIs)
+* Improved Rackspace Cloud Files compatibility (now using latest APIs)
+* Improved page cache purge for extensions like cloudflare and other reverse proxy use cases
+* Improved extension framework functionality
+* Improved compatibility of headers like ETag and content encoding
+* Improved template fragment caching
+* Improved notifications, warnings and errors
+* Improved moble user agents detection
+* Improved security with nonces and form elements
+* Improved security throughout the codebase
+* Improved detail of debug messages
+* Improved Amazon SNS security (validation)
+* Improved minify's ability to match script tags without type attribute
 
 = 0.9.4 =
 * Fixed undefined w3tc_button_link
@@ -781,10 +866,10 @@ Please reach out to all of these people and support their projects if you're so 
 * Fixed nginx configuration and Referrer, User Groups setting
 * Fixed Genesis settings and Suhosin field name limit error
 * Fixed Genesis and Fragment Caching (caching categories etc)
-* Fixed CDN being enabled when creating NetDNA/MaxCDN pullzone
+* Fixed CDN being enabled when creating NetDNA / MaxCDN pull zone
 * Fixed NewRelic related notice in compatibility popup
 * Fixed trailing slash issue in filename to url conversion
-* Fixed issue with wp in subdirectory and relative Minimal Manual urls
+* Fixed issue with wp in subdirectory and relative minimal manual urls
 * Fixed issue with widget styling
 * Fixed issue with Purge All button action
 * Fixed issue with exporting of settings
@@ -825,46 +910,11 @@ Please reach out to all of these people and support their projects if you're so 
 * Updated EDGE MODE: Full site mirroring support for MaxCDN
 * Updated translations
 
-= 0.9.3 =
-* Added support for extensions
-* Added support for WordPress SEO image filter and CDN
-* Added file exclusions for media query string logic
-* Added user agents to user agents groups
-* Added CDN FTP path / host test
-* Fixed object cache and database cache for localization plugins
-* Fixed chinese filenames when using CDN
-* Fixed removal of stale cached files
-* Fixed missing slashes in inline HTML, JS and CSS files when using CDN
-* Fixed auto mode of minify filename length test
-* Fixed NetDNA / MaxCDN testing when domain does not match domain zone settings
-* Fixed CurlException and NetDNA / MaxCDN
-* Fixed pull zone dropdown not showing or showing wrong zone
-* Fixed trailing slash and redirect with apache
-* Fixed false notification for page cache rules verification
-* Fixed duplicate notifications for FTP
-* Fixed empty FTP form
-* Fixed add-in file validation
-* Fixed browser cache headers for proxy cases
-* Fixed wrong slash in Minify filepaths on windows based sites
-* Fixed settings link in minify test failure and multisite
-* Fixed missing param in canonical link generation
-* Fixed PHP 5.2 compatibility
-* Fixed handling of minify in preview mode
-* Fixed order of operation issue on install tab for nginx
-* Fixed translatable strings handling
-* Fixed page cache debug mode issues
-* Fixed home URL handling in multisite
-* Fixed manual minify mode and path based file source for sub-directory installations
-* Fixed path not set in disk enhanced caching
-* Fixed page cache rewrite rule detection
-* Improved security with esc_* usage
-* Improved backend performance with extensive refactoring
-
 
 == Upgrade Notice ==
 
-= 0.9.4.1 =
-Thanks for using W3 Total Cache! This release includes important security updates designed to contribute to a secure WordPress installation.
+= 0.9.5 =
+Thanks for using W3 Total Cache! This release includes fixes for recent XSS security issues that have been reported. In addition, hundreds of other improvements are now yours.
 
 = 0.9.4 =
 Thanks for using W3 Total Cache! This release introduces hundreds of well-tested stability fixes since the last release as well as a new mode called "edge mode," which allows us to make releases more often containing new features that are still undergoing testing or active iteration.

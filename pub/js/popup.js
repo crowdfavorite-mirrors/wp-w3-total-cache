@@ -26,12 +26,12 @@ function w3tc_seconds_to_string(seconds) {
 var W3tc_Popup_Cdn_Export_File = {
     paused: 0,
     limit: 25,
-    offset: 0,
     retry_seconds: 10,
     seconds_elapsed: 0,
     timer: null,
     nonce: '',
     files: [],
+    initialized: false,
     upload_files: [],
 
     set_progress: function(percent) {
@@ -73,20 +73,21 @@ var W3tc_Popup_Cdn_Export_File = {
             return;
         }
 
-        this.upload_files = [];
-
-        for (var i = this.offset, l = this.files.length, j = 0; i < l && j < this.limit; i++,j++) {
-            this.upload_files.push(this.files[i]);
+        if (!this.initialized) {
+            this.upload_files = this.files.slice(0);
+            this.initialized = true;
         }
 
+        to_upload = this.upload_files.slice(0, this.limit);
+
         var me = this;
-        if (this.upload_files.length) {
+        if (to_upload.length) {
             jQuery.ajax({
                 type: 'POST',
                 url: 'admin.php?page=w3tc_cdn',
                 data: {
                     w3tc_cdn_export_process: 1,
-                    'files[]': this.upload_files,
+                    'files[]': to_upload,
                     _wpnonce: this.nonce
                 },
                 dataType: 'json',
@@ -121,7 +122,15 @@ var W3tc_Popup_Cdn_Export_File = {
     process_callback: function(data) {
         var failed = false;
         for (var i = 0; i < data.results.length; i++) {
-            this.add_log(data.results[i].remote_path, data.results[i].result, data.results[i].error);
+            var remote_path = data.results[i].file;
+            for (var n = 0; n < this.upload_files.length; n++) {
+                if (this.upload_files[n] == remote_path) {
+                    this.upload_files.splice(n, 1);
+                    break;
+                }
+            }
+
+            this.add_log(remote_path, data.results[i].result, data.results[i].error);
             if (data.results[i].result == -1) {
                 failed = true;
                 break;
@@ -135,11 +144,11 @@ var W3tc_Popup_Cdn_Export_File = {
             this.set_button_text('Start');
             clearInterval(this.timer);
         } else {
-            this.offset += this.upload_files.length;
-            this.set_progress((this.offset * 100 / this.files.length).toFixed(0));
-            this.set_processed(this.offset);
+            var count_processed = this.files.length - this.upload_files.length;
+            this.set_progress((count_processed * 100 / this.files.length).toFixed(0));
+            this.set_processed(count_processed);
 
-            if (this.offset < this.files.length) {
+            if (this.upload_files.length) {
                 this.process();
             } else {
                 this.set_status('done');
@@ -164,10 +173,11 @@ var W3tc_Popup_Cdn_Export_File = {
                 clearInterval(me.timer);
             } else {
                 if (this.value == 'Start') {
-                    me.offset = 0;
                     me.seconds_elapsed = 0;
+                    me.initialized = false;
                     me.clear_log();
                     me.set_progress(0);
+                    me.set_processed(0);
                     me.set_elapsed('-');
                 }
                 me.paused = 0;
@@ -425,6 +435,7 @@ var W3tc_Popup_Cdn_Import_Library = {
         }
 
         var me = this;
+        var cdn_import_external = jQuery("input#cdn_import_external").is(":checked");
         jQuery.ajax({
             type: 'POST',
             url: 'admin.php?page=w3tc_cdn',
@@ -432,7 +443,8 @@ var W3tc_Popup_Cdn_Import_Library = {
                 w3tc_cdn_import_library_process: 1,
                 limit: this.limit,
                 offset: this.offset,
-                _wpnonce: this.nonce
+                _wpnonce: this.nonce,
+                cdn_import_external: cdn_import_external
             },
             dataType: 'json',
             success: function(data) {

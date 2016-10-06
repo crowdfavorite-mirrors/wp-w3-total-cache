@@ -1,18 +1,15 @@
 <?php
 
-w3_require_once(W3TC_INC_DIR . '/functions/file.php');
-
 /**
  * Class Minify_Cache_File
  * @package Minify
  */
 
 class Minify_Cache_File {
-
+    
     public function __construct($path = '', $exclude = array(), $locking = false, $flushTimeLimit = 0, $flush_path = null) {
-        if (!$path) {
-            w3_require_once(W3TC_LIB_MINIFY_DIR . '/Solar/Dir.php');
-            $path = rtrim(Solar_Dir::tmp(), DIRECTORY_SEPARATOR);
+        if (! $path) {
+            $path = self::tmp();
         }
 
         $this->_path = $path;
@@ -24,7 +21,7 @@ class Minify_Cache_File {
 
         if (!file_exists($this->_path .'/index.html')) {
             if (!is_dir($this->_path))
-                w3_mkdir_from($this->_path, W3TC_CACHE_DIR);
+                \W3TC\Util_File::mkdir_from($this->_path, W3TC_CACHE_DIR);
             @file_put_contents($this->_path .'/index.html', '');
         }
     }
@@ -33,12 +30,13 @@ class Minify_Cache_File {
      * Write data to cache.
      *
      * @param string $id cache id (e.g. a filename)
-     *
+     * 
      * @param string $data
-     *
+     * 
      * @return bool success
      */
-    public function store($id, $data) {
+    public function store($id, $data)
+    {
         $path = $this->_path . '/' . $id;
         $flag = $this->_locking ? LOCK_EX : null;
 
@@ -46,9 +44,9 @@ class Minify_Cache_File {
             @unlink($path);
         }
 
-        if (!@file_put_contents($path, $data, $flag)) {
+        if (!@file_put_contents($path, $data['content'], $flag)) {
             // retry with make dir
-            w3_mkdir_from(dirname($path), W3TC_CACHE_DIR);
+            \W3TC\Util_File::mkdir_from(dirname($path), W3TC_CACHE_DIR);
 
             if (!@file_put_contents($path, $data, $flag))
                 return false;
@@ -58,28 +56,33 @@ class Minify_Cache_File {
             @file_put_contents($path . '.old', $data, $flag);
         }
 
+        $content = $data['content'];
+        unset($data['content']);
+        if (count($data) > 0)
+            @file_put_contents($path . '.meta', serialize($data), $flag);
+
         // write control
-        if ($data != $this->fetch($id)) {
+        $read = $this->fetch($id);
+        if (!isset($read['content']) || $content != $read['content']) {
             @unlink($path);
 
             return false;
         }
         return true;
     }
-
+    
     /**
      * Get the size of a cache entry
      *
      * @param string $id cache id (e.g. a filename)
-     *
+     * 
      * @return int size in bytes
      */
-    public function getSize($id) {
-        $path = $this->_path . '/' . $id;
-
-        return filesize($path);
+    public function getSize($id)
+    {
+        return filesize($this->_path . '/' . $id);
     }
-
+    
     /**
      * Does a valid cache entry exist?
      *
@@ -89,19 +92,19 @@ class Minify_Cache_File {
      *
      * @return bool exists
      */
-    public function isValid($id, $srcMtime) {
-        $path = $this->_path . '/' . $id;
-
-        return (is_file($path) && (filemtime($path) >= $srcMtime));
+    public function isValid($id, $srcMtime)
+    {
+        $file = $this->_path . '/' . $id;
+        return (is_file($file) && (filemtime($file) >= $srcMtime));
     }
-
+    
     /**
      * Send the cached content to output
      *
      * @param string $id cache id (e.g. a filename)
-     * @return bool
      */
-    public function display($id) {
+    public function display($id)
+    {
         $path = $this->_path . '/' . $id;
 
         $fp = @fopen($path, 'rb');
@@ -119,16 +122,24 @@ class Minify_Cache_File {
 
         return false;
     }
-
-    /**
+    
+	/**
      * Fetch the cached content
      *
      * @param string $id cache id (e.g. a filename)
-     *
+     * 
      * @return string
      */
-    public function fetch($id) {
+    public function fetch($id)
+    {
         $path = $this->_path . '/' . $id;
+
+        $data = @file_get_contents($path . '.meta');
+        if ($data) {
+            $data = @unserialize($data);
+            if (!is_array($data))
+                $data = array();
+        }
 
         if (is_readable($path)) {
             if ($this->_locking) {
@@ -145,7 +156,8 @@ class Minify_Cache_File {
                     return $ret;
                 }
             } else {
-                return @file_get_contents($path);
+                $data['content'] = @file_get_contents($path);
+                return $data;
             }
         } else {
             $path_old = $path . '.old';
@@ -155,7 +167,8 @@ class Minify_Cache_File {
             if ($file_time) {
                 if ($file_time > $too_old_time) {
                     // return old data
-                    return @file_get_contents($path_old);
+                    $data['content'] = @file_get_contents($path_old);
+                    return $data;
                 }
 
                 @touch($path_old);
@@ -163,6 +176,45 @@ class Minify_Cache_File {
         }
 
         return false;
+    }
+
+        /**
+     * Returns the OS-specific directory for temporary files
+     *
+     * @author Paul M. Jones <pmjones@solarphp.com>
+     * @license http://opensource.org/licenses/bsd-license.php BSD
+     * @link http://solarphp.com/trac/core/browser/trunk/Solar/Dir.php
+     *
+     * @return string
+     */
+    protected static function _tmp()
+    {
+        // non-Windows system?
+        if (strtolower(substr(PHP_OS, 0, 3)) != 'win') {
+            $tmp = empty($_ENV['TMPDIR']) ? getenv('TMPDIR') : $_ENV['TMPDIR'];
+            if ($tmp) {
+                return $tmp;
+            } else {
+                return '/tmp';
+            }
+        }
+        // Windows 'TEMP'
+        $tmp = empty($_ENV['TEMP']) ? getenv('TEMP') : $_ENV['TEMP'];
+        if ($tmp) {
+            return $tmp;
+        }
+        // Windows 'TMP'
+        $tmp = empty($_ENV['TMP']) ? getenv('TMP') : $_ENV['TMP'];
+        if ($tmp) {
+            return $tmp;
+        }
+        // Windows 'windir'
+        $tmp = empty($_ENV['windir']) ? getenv('windir') : $_ENV['windir'];
+        if ($tmp) {
+            return $tmp;
+        }
+        // final fallback for Windows
+        return getenv('SystemRoot') . '\\temp';
     }
 
     /**
@@ -173,7 +225,7 @@ class Minify_Cache_File {
     public function flush() {
         @set_time_limit($this->_flushTimeLimit);
 
-        return w3_emptydir($this->_flush_path, $this->_exclude);
+        return \W3TC\Util_File::emptydir($this->_flush_path, $this->_exclude);
     }
 
     /**
@@ -189,4 +241,61 @@ class Minify_Cache_File {
     private $_exclude = null;
     private $_locking = null;
     private $_flushTimeLimit = null;
+
+    /**
+     * Returns size statistics about cache files
+     */
+    public function get_stats_size($timeout_time)
+    {
+        $dir = @opendir($this->_path);
+
+        $stats = array(
+            'css' => array(
+                'items' => 0,
+                'original_length' => 0,
+                'output_length' => 0
+            ),
+            'js' => array(
+                'items' => 0,
+                'original_length' => 0,
+                'output_length' => 0
+            ),
+            'timeout_occurred' => false
+        );
+
+        if (!$dir)
+            return $stats;
+
+        $n = 0;
+        while (!$stats['timeout_occurred'] && 
+                ($entry = @readdir($dir)) !== false) {
+            $n++;
+            if ($n % 1000 == 0)
+                $stats['timeout_occurred'] |= (time() > $timeout_time);
+
+            if (substr($entry, -8) == '.js.meta' || substr($entry, -13) == '.js.gzip.meta')
+                $type = 'js';
+            else if (substr($entry, -9) == '.css.meta' || substr($entry, -14) == '.css.gzip.meta')
+                $type = 'css';
+            else
+                continue;
+
+            $full_path = $this->_path . DIRECTORY_SEPARATOR . $entry;
+            $data = @file_get_contents($full_path);
+            if (!$data)
+                continue;
+
+            $data = @unserialize($data);
+            if (!is_array($data) || !isset($data['originalLength']))
+                continue;
+
+            $stats[$type]['items']++;
+            $stats[$type]['original_length'] += (int)$data['originalLength'];
+            $stats[$type]['output_length'] += 
+                @filesize(substr($full_path, 0, strlen($full_path) - 5));
+        }
+
+        @closedir($dir);
+        return $stats;
+    }
 }

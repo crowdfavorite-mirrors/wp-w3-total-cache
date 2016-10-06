@@ -6,7 +6,7 @@ var W3tc_Lightbox = {
     create: function() {
         var me = this;
 
-        this.container = jQuery('<div class="' + this.options.id + ' lightbox-loading"><div class="lightbox-close">' + this.options.close + '</div><div class="lightbox-content"></div></div>').css({
+        this.container = jQuery('<div class="' + this.options.id + '"><div class="lightbox-close">' + this.options.close + '</div><div class="lightbox-content"></div></div>').css({
             top: 0,
             left: 0,
             width: 0,
@@ -59,13 +59,24 @@ var W3tc_Lightbox = {
             this.content(this.options.content);
         } else if (this.options.url) {
             this.load(this.options.url, this.options.callback);
+
+            if (typeof ga != 'undefined') {
+                var w3tc_action = this.options.url.match(/w3tc_action=([^&]+)/);
+                if (w3tc_action && w3tc_action[1])
+                    ga('send', 'pageview', 'overlays/' + w3tc_action[1]);
+            }
         }
+
+
 
         W3tc_Overlay.show();
         this.container.show();
     },
 
     close: function() {
+        if (this.options.onClose)
+            this.options.onClose();
+
         this.container.remove();
         W3tc_Overlay.hide();
     },
@@ -87,13 +98,13 @@ var W3tc_Lightbox = {
         }
 
         this.container.css({
-            top: (this.window.height() / 2 - this.container.outerHeight() / 2)>=0 ? this.window.height() / 2 - this.container.outerHeight() / 2 : 0,
-            left: (this.window.width() / 2 - this.container.outerWidth() / 2)>=0 ? this.window.width()  / 2 - this.container.outerWidth()  / 2 : 0
+            width: width,
+            height: height
         });
 
         this.container.css({
-            width: width,
-            height: height
+            top: (this.window.height() / 2 - this.container.outerHeight() / 2)>=0 ? this.window.height() / 2 - this.container.outerHeight() / 2 : 0,
+            left: (this.window.width() / 2 - this.container.outerWidth() / 2)>=0 ? this.window.width()  / 2 - this.container.outerWidth()  / 2 : 0
         });
 
         jQuery('.lightbox-content', this.container).css({
@@ -108,12 +119,54 @@ var W3tc_Lightbox = {
         var me = this;
         jQuery.get(url, {}, function(content) {
             me.loading(false);
+            if (content.substr(0, 9) === 'Location ') {
+                w3tc_beforeupload_unbind();
+                window.location = content.substr(9);
+                return;
+            }
+
             me.content(content);
             if (callback) {
                 callback.call(this, me);
             }
         });
     },
+
+    /**
+     * adds all controls of the form to the url
+     */
+    load_form: function(url, form_selector, callback) {
+        data = {}
+        var v = jQuery(form_selector).find('input').each(function(i) {
+            var name = jQuery(this).attr('name');
+            var type = jQuery(this).attr('type');
+            if (type == 'radio') {
+                if (!jQuery(this).attr('checked'))
+                    return;
+            }
+
+            if (name)
+                data[name] = jQuery(this).val();
+        });
+
+        this.content('');
+        this.loading(true);
+        var me = this;
+        jQuery.post(url, data, function(content) {
+            me.loading(false);
+            if (content.substr(0, 9) === 'Location ') {
+                w3tc_beforeupload_unbind();
+                window.location = content.substr(9);
+                return;
+            }
+
+            me.content(content);
+            if (callback) {
+                callback.call(this, me);
+            }
+        });
+    },
+
 
     content: function(content) {
         return this.container.find('.lightbox-content').html(content);
@@ -138,7 +191,10 @@ var W3tc_Lightbox = {
     },
 
     loading: function(loading) {
-        return (loading === undefined ? this.container.hasClass('lightbox-loader') : (loading ? this.container.addClass('lightbox-loader') : this.container.removeClass('lightbox-loader')));
+        if (loading)
+            this.container.find('.lightbox-content').addClass('lightbox-loader');
+        else
+            this.container.find('.lightbox-content').removeClass('lightbox-loader');
     }
 };
 
@@ -189,15 +245,7 @@ var W3tc_Overlay = {
     }
 };
 
-function w3tc_lightbox_support_us(nonce) {
-    W3tc_Lightbox.open({
-        id: 'w3tc-overlay',
-        close: '',
-        width: 800,
-        height: 420,
-        url: 'admin.php?page=w3tc_dashboard&w3tc_support_us&_wpnonce=' + nonce
-    });
-}
+
 
 var w3tc_minify_recommendations_checked = {};
 
@@ -309,29 +357,11 @@ function w3tc_lightbox_minify_recommendations(nonce) {
     });
 }
 
-function w3tc_lightbox_use_edge_mode(nonce) {
-    W3tc_Lightbox.open({
-        id:'w3tc-overlay',
-      close: '',
-      width: 800,
-        height: 210,
-        url: 'admin.php?page=w3tc_dashboard&w3tc_test_use_edge_mode&_wpnonce=' + nonce,
-        callback: function(lightbox) {
-            jQuery('.button-primary', lightbox.container).click(function() {
-                lightbox.close();
-            });
-          jQuery('.button-cancel', lightbox.container).click(function() {
-            lightbox.close();
-          });
-        }
-    });
-}
-
 function w3tc_lightbox_self_test(nonce) {
     W3tc_Lightbox.open({
         width: 800,
         minHeight: 300,
-        url: 'admin.php?page=w3tc_dashboard&w3tc_test_self&_wpnonce=' + nonce,
+        url: 'admin.php?page=w3tc_dashboard&w3tc_test_self&_wpnonce=' + w3tc_nonce,
         callback: function(lightbox) {
                 jQuery('.button-primary', lightbox.container).click(function() {
                 lightbox.close();
@@ -348,13 +378,15 @@ function w3tc_lightbox_upgrade(nonce) {
     height: 350,
     url: 'admin.php?page=w3tc_dashboard&w3tc_licensing_upgrade&_wpnonce=' + nonce,
     callback: function(lightbox) {
-      jQuery('.button-primary', lightbox.container).click(function() {
-        lightbox.close();
-      });
-      jQuery('#w3tc-purchase', lightbox.container).click(function() {
-        lightbox.close();
-        w3tc_lightbox_buy_plugin(nonce);
-      });
+        lightbox.options.height = jQuery('#w3tc-upgrade').height() - 57;
+        jQuery('.button-primary', lightbox.container).click(function() {
+            lightbox.close();
+        });
+        jQuery('#w3tc-purchase', lightbox.container).click(function() {
+            lightbox.close();
+            w3tc_lightbox_buy_plugin(nonce);
+        });
+        lightbox.resize();
     }
   });
 }
@@ -366,14 +398,29 @@ function w3tc_lightbox_buy_plugin(nonce) {
         url: 'admin.php?page=w3tc_dashboard&w3tc_licensing_buy_plugin&_wpnonce=' + nonce,
         callback: function(lightbox) {
             var w3tc_license_listener = function(event) {
-                if (event.origin !== "http://www.w3-edge.com" && event.origin !== "https://www.w3-edge.com")
-                    return;
-                if (event.data.substr(0, 7) != 'license')
+                if (event.origin.substr(event.origin.length - 12) !== ".w3-edge.com")
                     return;
 
-                lightbox.close();
-              var key = event.data.substr(8);
-              w3tc_lightbox_save_licence_key(key, nonce);
+                var data = event.data.split(' ');
+                if (data[0] === 'license') {
+                    // legacy purchase
+                    w3tc_lightbox_save_licence_key(function() {
+                        lightbox.close();
+                    });
+                } else if (data[0] === 'v2_license') {
+                    // reset default timeout
+                    var iframe = document.getElementById('buy_frame');
+                    if (iframe.contentWindow && iframe.contentWindow.postMessage)
+                        iframe.contentWindow.postMessage('v2_license_accepted', '*');
+
+                    lightbox.options.onClose = function() {
+                        window.location = window.location + '&refresh';
+                    }
+
+                    w3tc_lightbox_save_licence_key(data[1], nonce, function() {
+                        jQuery('#buy_frame').attr('src', data[3]);
+                    });
+                }
             }
 
             if (window.addEventListener) {
@@ -389,16 +436,17 @@ function w3tc_lightbox_buy_plugin(nonce) {
     });
 }
 
-function w3tc_lightbox_save_licence_key(key, nonce) {
-  jQuery('#plugin_license_key').val(key);
+function w3tc_lightbox_save_licence_key(license_key, nonce, callback) {
+  jQuery('#plugin_license_key').val(license_key);
   var params = {
     w3tc_default_save_licence_key: 1,
-    license_key: key,
+    license_key: license_key,
     _wpnonce: nonce
   };
 
   jQuery.post('admin.php?page=w3tc_dashboard', params, function(data) {
-  }, 'json');
+    callback();
+  }, 'json').fail(callback);
 }
 
 function w3tc_lightbox_cdn_s3_bucket_location(type, nonce) {
@@ -510,8 +558,7 @@ jQuery(function() {
     });
 
     jQuery('.button-buy-plugin').click(function() {
-        var nonce = jQuery(this).metadata().nonce;
-        w3tc_lightbox_upgrade(nonce);
+        w3tc_lightbox_upgrade(w3tc_nonce);
         jQuery('#w3tc-license-instruction').show();
         return false;
     });
@@ -535,5 +582,9 @@ jQuery(function() {
         var nonce = jQuery(this).metadata().nonce;
         w3tc_lightbox_netdna_maxcdn_pull_zone(type, nonce);
         return false;
+    });
+
+    jQuery('body').on('click', '.w3tc_lightbox_close', function() {
+        W3tc_Lightbox.close();
     });
 });

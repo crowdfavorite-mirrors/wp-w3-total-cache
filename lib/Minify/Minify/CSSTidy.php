@@ -20,7 +20,7 @@ class Minify_CSSTidy {
             'template' => 'default'
         ), $options);
 
-        set_include_path(get_include_path() . PATH_SEPARATOR . W3TC_LIB_CSSTIDY_DIR);
+        set_include_path(get_include_path() . PATH_SEPARATOR . W3TC_LIB_DIR . '/CSSTidy');
 
         require_once 'class.csstidy.php';
 
@@ -34,8 +34,6 @@ class Minify_CSSTidy {
         $csstidy->parse($css);
 
         $css = $csstidy->print->plain();
-
-        w3_require_once(W3TC_LIB_MINIFY_DIR . '/Minify/CSS/UriRewriter.php');
 
         $css = Minify_CSS_UriRewriter::rewrite($css, $options);
 
